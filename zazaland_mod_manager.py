@@ -125,7 +125,7 @@ def opcion_curseforge_server():
         
     copiar_mods(origen, destino)
 
-def opcion_zazaland():
+def opcion_minecraft():
     origen = seleccionar_ruta_ventana("Selecciona la carpeta que CONTIENE la carpeta 'mods' que deseas copiar", "")
     if origen is None:  # Si se canceló
         return
@@ -142,16 +142,16 @@ def opcion_zazaland():
 # --- Interfaz principal ---
 
 root = tk.Tk()
-root.title("Zazaland Mod Manager")
+root.title("minecraft mod manager")
 root.geometry("400x280")
 root.resizable(False, False)
 
-tk.Label(root, text="Zazaland Mod Manager", font=("Segoe UI", 14, "bold")).pack(pady=15)
+tk.Label(root, text="minecraft mod manager", font=("Segoe UI", 14, "bold")).pack(pady=15)
 
-ttk.Button(root, text="CurseForge Client", command=opcion_curseforge_client, width=30).pack(pady=6)
-ttk.Button(root, text="CurseForge Server", command=opcion_curseforge_server, width=30).pack(pady=6)
-ttk.Button(root, text="Zazaland", command=opcion_zazaland, width=30).pack(pady=6)
+ttk.Button(root, text="curseforge client", command=opcion_curseforge_client, width=30).pack(pady=6)
+ttk.Button(root, text="curseforge server", command=opcion_curseforge_server, width=30).pack(pady=6)
+ttk.Button(root, text="minecraft", command=opcion_minecraft, width=30).pack(pady=6)
 
-tk.Label(root, text="© 2025 Zazaland Tools", font=("Segoe UI", 8)).pack(side="bottom", pady=10)
+tk.Label(root, text="© 2025 makro", font=("Segoe UI", 8)).pack(side="bottom", pady=10)
 
 root.mainloop()
