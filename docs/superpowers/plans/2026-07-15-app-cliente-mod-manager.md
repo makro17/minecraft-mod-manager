@@ -1,4 +1,4 @@
-# App cliente "Minecraft Mod Manager" (Sub-proyecto B) Implementation Plan
+# App cliente "MakroModManager" (Sub-proyecto B) Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -16,7 +16,7 @@
 - **Formato de clave:** `PPL-XXXX-XXXX-XXXX`, alfabeto `A-Z0-9`. Regex: `^PPL-[A-Z0-9]{4}-[A-Z0-9]{4}-[A-Z0-9]{4}$`.
 - **No destructivo:** nunca se tocan `saves/` ni `config/` de la instancia; el `.minecraft` oficial solo recibe `versions/`, `libraries/` y un perfil (merge, preservando los del jugador).
 - **Loader v1:** solo **NeoForge** implementado; otros loaders lanzan `LoaderNoSoportado` con mensaje claro.
-- **Estado:** `%APPDATA%\MinecraftModManager\state.json` (biblioteca de servidores). Clave guardada en claro (uso personal, decisión consciente).
+- **Estado:** `%APPDATA%\MakroModManager\state.json` (biblioteca de servidores). Clave guardada en claro (uso personal, decisión consciente).
 - **Tests sin red ni Minecraft real:** `requests`, `subprocess` y descargas se mockean; se usa `tmp_path`.
 
 ---
@@ -43,9 +43,9 @@
 - `mmm/ui/server_view.py` — detalle de servidor + instalar/actualizar.
 - `mmm/__main__.py` — arranque, wiring, chequeo de auto-update.
 - `tests/conftest.py` + `tests/test_*.py`.
-- Empaquetado: `MinecraftModManager.spec`, `build.bat`, `clean.bat`, `installer.iss`, `INSTRUCCIONES.md`, `requirements.txt`, `requirements-dev.txt`.
+- Empaquetado: `MakroModManager.spec`, `build.bat`, `clean.bat`, `installer.iss`, `INSTRUCCIONES.md`, `requirements.txt`, `requirements-dev.txt`.
 
-**Eliminados:** `zazaland_mod_manager.py`, `MinecraftModManager.spec` viejo, carpetas `build/` y `dist/` generadas.
+**Eliminados:** `zazaland_mod_manager.py`, `MakroModManager.spec` viejo, carpetas `build/` y `dist/` generadas.
 
 ---
 
@@ -53,7 +53,7 @@
 
 **Files:**
 - Create: `mmm/__init__.py`, `mmm/version.py`, `requirements.txt`, `requirements-dev.txt`, `.gitignore`, `tests/__init__.py`, `tests/test_version.py`
-- Delete: `zazaland_mod_manager.py`, `MinecraftModManager.spec`, `build/`, `dist/`
+- Delete: `zazaland_mod_manager.py`, `MakroModManager.spec`, `build/`, `dist/`
 
 **Interfaces:**
 - Produces: `mmm.__version__: str` (== `mmm.version.__version__`), valor inicial `"1.0.0"`.
@@ -125,7 +125,7 @@ installer_output/
 - [ ] **Step 4: Borrar lo viejo**
 
 ```bash
-git rm zazaland_mod_manager.py MinecraftModManager.spec
+git rm zazaland_mod_manager.py MakroModManager.spec
 rm -rf build dist
 ```
 
@@ -360,7 +360,7 @@ from mmm import config
 
 @pytest.fixture(autouse=True)
 def tmp_state(tmp_path, monkeypatch):
-    monkeypatch.setattr(config, "STATE_DIR", tmp_path / "MinecraftModManager")
+    monkeypatch.setattr(config, "STATE_DIR", tmp_path / "MakroModManager")
 
 
 def test_load_state_por_defecto():
@@ -404,7 +404,7 @@ import os
 from pathlib import Path
 
 _APPDATA = os.environ.get("APPDATA") or str(Path.home())
-STATE_DIR = Path(_APPDATA) / "MinecraftModManager"
+STATE_DIR = Path(_APPDATA) / "MakroModManager"
 
 _DEFAULT = {"app_version": None, "official_minecraft_dir": None, "servers": []}
 
@@ -707,7 +707,7 @@ def test_override_env(monkeypatch, tmp_path):
 def test_frozen_usa_runtime(monkeypatch, tmp_path):
     monkeypatch.delenv("MMM_JAVA", raising=False)
     monkeypatch.setattr(jre.sys, "frozen", True, raising=False)
-    monkeypatch.setattr(jre.sys, "executable", str(tmp_path / "MinecraftModManager.exe"))
+    monkeypatch.setattr(jre.sys, "executable", str(tmp_path / "MakroModManager.exe"))
     assert jre.java_exe() == tmp_path / "runtime" / "bin" / "java.exe"
 ```
 
@@ -1744,7 +1744,7 @@ from .widgets import ServerRow
 class AppWindow(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("Minecraft Mod Manager")
+        self.title("MakroModManager")
         self.geometry("720x480")
         self.container = ttk.Frame(self)
         self.container.pack(fill="both", expand=True)
@@ -1758,7 +1758,7 @@ class AppWindow(tk.Tk):
         self._clear()
         header = ttk.Frame(self.container, padding=12)
         header.pack(fill="x")
-        ttk.Label(header, text="Minecraft Mod Manager",
+        ttk.Label(header, text="MakroModManager",
                   font=("Segoe UI", 14, "bold")).pack(side="left")
 
         body = ttk.Frame(self.container, padding=8)
@@ -1907,7 +1907,7 @@ def _ask(info) -> bool:
 
 
 def _download_and_launch(info) -> None:
-    dest = Path(tempfile.gettempdir()) / "MinecraftModManager_setup.exe"
+    dest = Path(tempfile.gettempdir()) / "MakroModManager_setup.exe"
     api.download_app(dest)
     subprocess.Popen([str(dest)])
 
@@ -1951,22 +1951,22 @@ git commit -m "App cliente: punto de entrada + auto-update al arrancar"
 ## Task 16: Empaquetado (PyInstaller + Inno Setup + JRE bundleado)
 
 **Files:**
-- Create: `MinecraftModManager.spec`, `build.bat`, `clean.bat`, `installer.iss`, `INSTRUCCIONES.md`
+- Create: `MakroModManager.spec`, `build.bat`, `clean.bat`, `installer.iss`, `INSTRUCCIONES.md`
 - Verificación: manual (build real en Windows).
 
 **Interfaces:**
 - Consumes: el paquete `mmm/` completo, `assets/icon.ico` (placeholder), `runtime/` (JRE generado por jlink).
-- Produces: `installer_output/MinecraftModManager_setup.exe`.
+- Produces: `installer_output/MakroModManager_setup.exe`.
 
 - [ ] **Step 1: Crear icono placeholder**
 
 Coloca un `assets/icon.ico` provisional (cualquier `.ico` 256×256). Se sustituye cuando el usuario dé el definitivo.
 
-- [ ] **Step 2: Crear `MinecraftModManager.spec`**
+- [ ] **Step 2: Crear `MakroModManager.spec`**
 
 ```python
 # -*- mode: python ; coding: utf-8 -*-
-# Empaqueta la app en dist/MinecraftModManager/ (onedir).
+# Empaqueta la app en dist/MakroModManager/ (onedir).
 # El JRE bundleado (carpeta runtime/) se añade como datos junto al exe.
 
 a = Analysis(
@@ -1987,14 +1987,14 @@ pyz = PYZ(a.pure)
 exe = EXE(
     pyz, a.scripts, [],
     exclude_binaries=True,
-    name='MinecraftModManager',
+    name='MakroModManager',
     debug=False, bootloader_ignore_signals=False, strip=False, upx=False,
     console=False, disable_windowed_traceback=False,
     icon='assets/icon.ico',
 )
 coll = COLLECT(
     exe, a.binaries, a.datas,
-    strip=False, upx=False, upx_exclude=[], name='MinecraftModManager',
+    strip=False, upx=False, upx_exclude=[], name='MakroModManager',
 )
 ```
 
@@ -2040,41 +2040,41 @@ echo [2/4] Instalando dependencias...
 %PYTHON% -m pip install -r requirements-dev.txt
 
 echo [3/4] Compilando con PyInstaller...
-%PYTHON% -m PyInstaller MinecraftModManager.spec --noconfirm
+%PYTHON% -m PyInstaller MakroModManager.spec --noconfirm
 if %errorlevel% neq 0 ( echo [ERROR] PyInstaller fallo. & pause & exit /b 1 )
 
 echo [4/4] Creando instalador con Inno Setup...
 if not exist %INNO% (
-    echo [!] Inno Setup no encontrado. El exe esta en dist\MinecraftModManager\
+    echo [!] Inno Setup no encontrado. El exe esta en dist\MakroModManager\
     pause & exit /b 1
 )
 call %INNO% installer.iss
 if %errorlevel% neq 0 ( echo [ERROR] Inno Setup fallo. & pause & exit /b 1 )
 
-echo LISTO: installer_output\MinecraftModManager_setup.exe
+echo LISTO: installer_output\MakroModManager_setup.exe
 pause
 ```
 
 - [ ] **Step 6: Crear `installer.iss`**
 
 ```iss
-; Minecraft Mod Manager — Inno Setup
-#define AppName    "Minecraft Mod Manager"
+; MakroModManager — Inno Setup
+#define AppName    "MakroModManager"
 #define AppVersion "1.0.0"
-#define AppExe     "MinecraftModManager.exe"
-#define BuildDir   "dist\MinecraftModManager"
+#define AppExe     "MakroModManager.exe"
+#define BuildDir   "dist\MakroModManager"
 
 [Setup]
 AppName={#AppName}
 AppVersion={#AppVersion}
-DefaultDirName={localappdata}\MinecraftModManager
+DefaultDirName={localappdata}\MakroModManager
 DisableProgramGroupPage=yes
 DisableDirPage=no
 CreateAppDir=yes
 DirExistsWarning=no
 UsePreviousAppDir=yes
 OutputDir=installer_output
-OutputBaseFilename=MinecraftModManager_setup
+OutputBaseFilename=MakroModManager_setup
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
@@ -2094,7 +2094,7 @@ Source: "{#BuildDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs c
 Name: "{userdesktop}\{#AppName}"; Filename: "{app}\{#AppExe}"
 
 [Run]
-Filename: "{app}\{#AppExe}"; Description: "Abrir Minecraft Mod Manager"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#AppExe}"; Description: "Abrir MakroModManager"; Flags: nowait postinstall skipifsilent
 ```
 
 > Mantener `AppVersion` en el `.iss` sincronizado con `mmm/version.py` en cada release.
@@ -2102,7 +2102,7 @@ Filename: "{app}\{#AppExe}"; Description: "Abrir Minecraft Mod Manager"; Flags: 
 - [ ] **Step 7: Crear `INSTRUCCIONES.md`**
 
 ```markdown
-# Minecraft Mod Manager — Compilación y publicación
+# MakroModManager — Compilación y publicación
 
 ## 1. Generar el JRE bundleado (una vez por versión de Java)
 
@@ -2124,7 +2124,7 @@ jlink --add-modules java.base,java.desktop,java.logging,java.naming,java.net.htt
 build.bat
 ```
 
-Genera `installer_output\MinecraftModManager_setup.exe`.
+Genera `installer_output\MakroModManager_setup.exe`.
 `clean.bat` borra `build/`, `dist/`, `installer_output/`.
 
 ## 3. Publicar en el panel (para el auto-update)
@@ -2132,7 +2132,7 @@ Genera `installer_output\MinecraftModManager_setup.exe`.
 El auto-update lee `/pub/app/version` y descarga `/pub/app/download`, que sirve el
 instalador registrado en el panel. Para publicar una versión nueva:
 
-1. Sube `MinecraftModManager_setup.exe` en el panel: tab **MODPACK** → sección global
+1. Sube `MakroModManager_setup.exe` en el panel: tab **MODPACK** → sección global
    **App cliente** → subir instalador + versión (semver, igual que `mmm/version.py`) + notas.
 2. La primera instalación se distribuye a mano (no hay auto-update previo).
 
@@ -2145,7 +2145,7 @@ Sube el número en `mmm/version.py` **y** en `AppVersion` de `installer.iss` ant
 
 En Windows con Python 3, JDK 21 e Inno Setup:
 1. Genera `runtime/` (paso 1).
-2. `build.bat` → produce `installer_output\MinecraftModManager_setup.exe`.
+2. `build.bat` → produce `installer_output\MakroModManager_setup.exe`.
 3. Instala, abre la app, añade una clave real, instala el modpack y comprueba que el
    perfil aparece en el launcher oficial y arranca.
 
@@ -2155,7 +2155,7 @@ En Windows con Python 3, JDK 21 e Inno Setup:
 - [ ] **Step 9: Commit**
 
 ```bash
-git add MinecraftModManager.spec run.py build.bat clean.bat installer.iss INSTRUCCIONES.md assets
+git add MakroModManager.spec run.py build.bat clean.bat installer.iss INSTRUCCIONES.md assets
 git commit -m "App cliente: empaquetado (PyInstaller + Inno Setup + JRE bundleado)"
 ```
 

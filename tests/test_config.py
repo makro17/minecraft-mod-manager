@@ -5,7 +5,7 @@ from mmm import config
 
 @pytest.fixture(autouse=True)
 def tmp_state(tmp_path, monkeypatch):
-    monkeypatch.setattr(config, "STATE_DIR", tmp_path / "MinecraftModManager")
+    monkeypatch.setattr(config, "STATE_DIR", tmp_path / "MakroModManager")
 
 
 def test_load_state_por_defecto():

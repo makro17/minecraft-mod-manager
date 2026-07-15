@@ -12,5 +12,5 @@ def test_override_env(monkeypatch, tmp_path):
 def test_frozen_usa_runtime(monkeypatch, tmp_path):
     monkeypatch.delenv("MMM_JAVA", raising=False)
     monkeypatch.setattr(jre.sys, "frozen", True, raising=False)
-    monkeypatch.setattr(jre.sys, "executable", str(tmp_path / "MinecraftModManager.exe"))
+    monkeypatch.setattr(jre.sys, "executable", str(tmp_path / "MakroModManager.exe"))
     assert jre.java_exe() == tmp_path / "runtime" / "bin" / "java.exe"

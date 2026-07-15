@@ -1,7 +1,7 @@
-# Sub-proyecto B — App cliente "Minecraft Mod Manager" (MMM)
+# Sub-proyecto B — App cliente "MakroModManager" (MMM)
 
 > Diseño validado. Fecha: 2026-07-15.
-> Parte del proyecto "Minecraft Mod Manager" (panel productor + app cliente).
+> Parte del proyecto "MakroModManager" (panel productor + app cliente).
 > Reescritura completa del repo `minecraft-mod-manager` (hoy un script trivial de copia
 > de carpeta `mods/`). Este spec cubre **solo la app cliente** (consumidor). Depende del
 > contrato de la API pública `/pub` definido por el Sub-proyecto A (panel).
@@ -80,7 +80,7 @@ minecraft-mod-manager/
     __main__.py            # arranque; flags de mantenimiento (p.ej. limpieza post-update)
     version.py             # semver, fuente única (la usan el .iss y el auto-update)
     api.py                 # cliente /pub (resolve, manifest, file, app/version, app/download)
-    config.py              # estado/biblioteca en %APPDATA%\MinecraftModManager\state.json
+    config.py              # estado/biblioteca en %APPDATA%\MakroModManager\state.json
     instances.py           # rutas: instancia .minecraft-<slug>
     launcher.py            # detectar .minecraft oficial + leer/escribir launcher_profiles.json
     loaders/
@@ -97,7 +97,7 @@ minecraft-mod-manager/
       dialogs.py           # diálogo "añadir clave", ajustes, errores
       widgets.py           # widgets reutilizables (fila de servidor, barra de progreso)
   assets/                  # icono (placeholder hasta tener el definitivo)
-  build.bat  clean.bat  installer.iss  MinecraftModManager.spec
+  build.bat  clean.bat  installer.iss  MakroModManager.spec
   requirements.txt  requirements-dev.txt  INSTRUCCIONES.md
   tests/
 ```
@@ -131,7 +131,7 @@ Interfaz `LoaderInstaller` en `loaders/base.py`:
 
 **NeoForge (`loaders/neoforge.py`), v1:**
 1. Descargar el **installer oficial** del maven de NeoForge:
-   `https://maven.neoforged.net/releases/net/neoforged/neoforge/<ver>/neoforge-<ver>-installer.jar` (público; no pasa por el panel). Cachear en `%APPDATA%\MinecraftModManager\cache\`.
+   `https://maven.neoforged.net/releases/net/neoforged/neoforge/<ver>/neoforge-<ver>-installer.jar` (público; no pasa por el panel). Cachear en `%APPDATA%\MakroModManager\cache\`.
 2. Garantizar `launcher_profiles.json` en el `.minecraft` oficial (crear stub mínimo si falta; el installer lo exige).
 3. Ejecutar **headless** con el **JRE bundleado**:
    `<runtime>\bin\java.exe -jar <installer.jar> --install-client <official_dir>`
@@ -139,7 +139,7 @@ Interfaz `LoaderInstaller` en `loaders/base.py`:
 4. Devolver `version_id = "neoforge-<ver>"`.
 5. **Idempotente:** si `versions/neoforge-<ver>/` ya existe y es válido, se salta.
 
-Captura de `stdout`/`stderr` del proceso; si falla, log en `%APPDATA%\MinecraftModManager\logs\` + resumen en UI.
+Captura de `stdout`/`stderr` del proceso; si falla, log en `%APPDATA%\MakroModManager\logs\` + resumen en UI.
 
 ---
 
@@ -158,7 +158,7 @@ Dado el manifiesto (`GET /pub/manifest?key=`):
 
 ## Estado / biblioteca (config de la app)
 
-`%APPDATA%\MinecraftModManager\state.json`:
+`%APPDATA%\MakroModManager\state.json`:
 ```json
 {
   "app_version": "1.0.0",
@@ -187,7 +187,7 @@ Estilo tkinter/ttk plano. Ventana ~700×480.
 
 **Pantalla A — Biblioteca** (arranque):
 ```
-  Minecraft Mod Manager                         [ ⚙ ]  [ ? ]
+  MakroModManager                         [ ⚙ ]  [ ? ]
   ───────────────────────────────────────────────────────────
    Papulandia      NeoForge 1.21.1     ● Al día      [ Jugar ]
    OtroServer      NeoForge 1.21.1     ⬆ Actualizar  [Instalar]
@@ -226,8 +226,8 @@ Al arrancar, en segundo plano: `GET /pub/app/version` → `{version, download_ur
 
 ## Empaquetado (molde backtask)
 
-- **PyInstaller** `--onedir --windowed --icon`, con el **JRE bundleado** (jlink Temurin 21 recortado) incluido como `datas` en `runtime/` junto al exe. `MinecraftModManager.spec` versionado.
-- **Inno Setup** `installer.iss`: instala en `{localappdata}\MinecraftModManager`, `PrivilegesRequired=lowest`, acceso directo en escritorio, español, **`UsePreviousAppDir=yes`** (clave para el auto-update). Salida `installer_output\MinecraftModManager_setup.exe`.
+- **PyInstaller** `--onedir --windowed --icon`, con el **JRE bundleado** (jlink Temurin 21 recortado) incluido como `datas` en `runtime/` junto al exe. `MakroModManager.spec` versionado.
+- **Inno Setup** `installer.iss`: instala en `{localappdata}\MakroModManager`, `PrivilegesRequired=lowest`, acceso directo en escritorio, español, **`UsePreviousAppDir=yes`** (clave para el auto-update). Salida `installer_output\MakroModManager_setup.exe`.
 - **`build.bat`** (compila spec + Inno) y **`clean.bat`** (borra build/dist/installer_output/__pycache__), calcados de backtask.
 - **`INSTRUCCIONES.md`**: cómo compilar, cómo generar el JRE con jlink, y cómo **publicar el instalador al panel** (tab MODPACK global → `app_release`, que es lo que sirve `/pub/app/download`).
 - `mmm/version.py` = fuente única de la versión (la leen el `.iss` y el auto-update).

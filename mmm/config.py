@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 
 _APPDATA = os.environ.get("APPDATA") or str(Path.home())
-STATE_DIR = Path(_APPDATA) / "MinecraftModManager"
+STATE_DIR = Path(_APPDATA) / "MakroModManager"
 
 _DEFAULT = {"app_version": None, "official_minecraft_dir": None, "servers": []}
 
