@@ -15,5 +15,9 @@ def java_exe() -> Path:
     if override:
         return Path(override)
     if is_frozen():
-        return Path(sys.executable).parent / "runtime" / "bin" / "java.exe"
+        # PyInstaller coloca los datos (runtime/) en sys._MEIPASS: en onedir 6.x
+        # es la subcarpeta _internal/ junto al exe; en onefile, el dir temporal.
+        meipass = getattr(sys, "_MEIPASS", None)
+        base = Path(meipass) if meipass else Path(sys.executable).parent
+        return base / "runtime" / "bin" / "java.exe"
     return Path("java")  # dev: Java del sistema en el PATH
