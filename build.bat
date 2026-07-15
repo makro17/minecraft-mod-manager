@@ -7,7 +7,7 @@ if not exist %INNO% set INNO="C:\Program Files\Inno Setup 6\ISCC.exe"
 echo [1/4] Verificando JRE bundleado (runtime\bin\java.exe)...
 if not exist "runtime\bin\java.exe" (
     echo [ERROR] Falta la carpeta runtime\ con el JRE.
-    echo         Genera el JRE con jlink (ver INSTRUCCIONES.md) antes de compilar.
+    echo         Genera el JRE con jlink ^(ver INSTRUCCIONES.md^) antes de compilar.
     pause & exit /b 1
 )
 
