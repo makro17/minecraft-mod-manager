@@ -1,14 +1,11 @@
 """Vista de detalle de un servidor: instalar/actualizar con progreso."""
 from __future__ import annotations
 
-import tkinter as tk
-from pathlib import Path
 from tkinter import ttk
 
 from .. import api, config, instances, jre, launcher
 from ..worker import InstallWorker
 from . import dialogs
-from .format import status_label
 from .widgets import ProgressPanel
 
 
@@ -19,7 +16,8 @@ class ServerView(ttk.Frame):
         self.on_back = on_back
         self.worker: InstallWorker | None = None
 
-        ttk.Button(self, text="← Volver", command=on_back).pack(anchor="w")
+        self.back_button = ttk.Button(self, text="← Volver", command=self._back)
+        self.back_button.pack(anchor="w")
         ttk.Label(self, text=server["name"], font=("Segoe UI", 16, "bold")).pack(anchor="w", pady=(8, 0))
         ttk.Label(self, text=server.get("motd", "")).pack(anchor="w")
         ttk.Label(self, text=f'{server.get("loader","")} {server.get("minecraft_version","")} '
@@ -34,17 +32,23 @@ class ServerView(ttk.Frame):
         self.hint = ttk.Label(self, text="", wraplength=560, foreground="gray")
         self.hint.pack(anchor="w")
 
+    def _back(self):
+        self.on_back()
+
     def _start(self):
         official = config.official_minecraft_dir() or launcher.default_official_dir()
         instance = instances.instance_dir(self.server["slug"], official)
         self.server["instance_path"] = str(instance)
         config.upsert_server(self.server)
         self.action.config(state="disabled")
+        self.back_button.config(state="disabled")
         self.worker = InstallWorker()
         self.worker.start(self.server, official, jre.java_exe())
         self.after(200, self._poll)
 
     def _poll(self):
+        if not self.winfo_exists():
+            return
         if not self.worker:
             return
         for kind, kw in self.worker.poll():
@@ -61,10 +65,12 @@ class ServerView(ttk.Frame):
                 self.hint.config(text="TLauncher/otros: apunta el directorio de juego a "
                                        f'{self.server["instance_path"]} y elige la versión instalada.')
                 self.action.config(state="normal")
+                self.back_button.config(state="normal")
                 return
             elif kind == "error":
                 self.progress.set_status("Error en la instalación.")
                 dialogs.show_error(self, "Error", kw["message"])
                 self.action.config(state="normal")
+                self.back_button.config(state="normal")
                 return
         self.after(200, self._poll)
