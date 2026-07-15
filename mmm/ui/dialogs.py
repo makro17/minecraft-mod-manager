@@ -1,7 +1,6 @@
 """Diálogos tkinter: añadir clave, errores."""
 from __future__ import annotations
 
-import tkinter as tk
 from tkinter import messagebox, simpledialog
 
 from .format import valid_key

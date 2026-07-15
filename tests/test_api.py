@@ -1,9 +1,16 @@
 from pathlib import Path
 
 import pytest
+import requests
 
 from mmm import api
 from tests.conftest import FakeResp, FakeSession
+
+
+class FakeSessionSinRed:
+    """Simula un fallo de transporte (sin conexión) en session.get()."""
+    def get(self, url, params=None, stream=False, timeout=None):
+        raise requests.exceptions.ConnectionError("no hay red")
 
 
 def test_resolve_ok(monkeypatch):
@@ -37,3 +44,10 @@ def test_download_file_escribe_contenido(monkeypatch, tmp_path):
 def test_app_version_ok(monkeypatch):
     monkeypatch.setattr(api, "SESSION", FakeSession(FakeResp(json_data={"version": "1.2.0"})))
     assert api.app_version()["version"] == "1.2.0"
+
+
+def test_resolve_sin_red_lanza_puberror(monkeypatch):
+    monkeypatch.setattr(api, "SESSION", FakeSessionSinRed())
+    with pytest.raises(api.PubError) as e:
+        api.resolve("PPL-AAAA-BBBB-CCCC")
+    assert e.value.status is None

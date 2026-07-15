@@ -46,4 +46,6 @@ def write_profile(official_dir: Path, profile_key: str, name: str, version_id: s
         "created": existing.get("created", now),
         "lastUsed": now,
     }
-    p.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    tmp = p.with_suffix(".json.tmp")
+    tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
+    os.replace(tmp, p)

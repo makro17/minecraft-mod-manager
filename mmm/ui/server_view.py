@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from tkinter import ttk
 
-from .. import api, config, instances, jre, launcher
+from .. import config, instances, jre, launcher
 from ..worker import InstallWorker
 from . import dialogs
 from .widgets import ProgressPanel

@@ -20,3 +20,13 @@ def test_write_profile_preserva_existentes(official_dir):
     prof = data["profiles"]["mmm-papulandia"]
     assert prof["lastVersionId"] == "neoforge-21.1.224"
     assert prof["gameDir"].endswith(".minecraft-papulandia")
+
+
+def test_write_profile_es_atomico_no_deja_tmp(official_dir):
+    p = official_dir / "launcher_profiles.json"
+    launcher.write_profile(official_dir, "mmm-papulandia", "Papulandia",
+                           "neoforge-21.1.224", official_dir.with_name(".minecraft-papulandia"))
+    tmp = p.with_suffix(".json.tmp")
+    assert not tmp.exists()
+    data = json.loads(p.read_text(encoding="utf-8"))
+    assert "mmm-papulandia" in data["profiles"]

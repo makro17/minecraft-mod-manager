@@ -1,7 +1,6 @@
 """Widgets reutilizables de la biblioteca."""
 from __future__ import annotations
 
-import tkinter as tk
 from tkinter import ttk
 
 from .format import action_label, status_label

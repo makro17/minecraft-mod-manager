@@ -17,7 +17,10 @@ class PubError(Exception):
 
 
 def _get(path: str, params: dict | None = None, stream: bool = False):
-    r = SESSION.get(BASE_URL + path, params=params, stream=stream, timeout=TIMEOUT)
+    try:
+        r = SESSION.get(BASE_URL + path, params=params, stream=stream, timeout=TIMEOUT)
+    except requests.exceptions.RequestException as e:
+        raise PubError(f"Error de red: {e}", status=None) from e
     if r.status_code != 200:
         raise PubError(f"HTTP {r.status_code} en {path}", status=r.status_code)
     return r
