@@ -1,0 +1,70 @@
+import hashlib
+from pathlib import Path
+
+import pytest
+
+from mmm import sync
+
+
+def _sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def _fake_download(payloads):
+    """Devuelve una función download(sha, key, dest) que escribe payloads[sha]."""
+    def download(sha256, key, dest, progress=None):
+        Path(dest).parent.mkdir(parents=True, exist_ok=True)
+        Path(dest).write_bytes(payloads[sha256])
+    return download
+
+
+def _manifest(files):
+    return {"files": files}
+
+
+def test_descarga_y_verifica(tmp_path):
+    data = b"jar-bytes"
+    sha = _sha(data)
+    man = _manifest([{"kind": "mod", "filename": "jei.jar", "sha256": sha,
+                      "size": len(data), "target_dir": "mods", "url": f"/pub/file/{sha}"}])
+    sync.sync_manifest(man, tmp_path, "PPL-AAAA-BBBB-CCCC", _fake_download({sha: data}))
+    assert (tmp_path / "mods" / "jei.jar").read_bytes() == data
+
+
+def test_skip_si_sha_coincide(tmp_path):
+    data = b"ya-esta"
+    sha = _sha(data)
+    dest = tmp_path / "mods" / "jei.jar"
+    dest.parent.mkdir(parents=True)
+    dest.write_bytes(data)
+
+    def _boom(*a, **k):
+        raise AssertionError("no debía descargar")
+
+    man = _manifest([{"filename": "jei.jar", "sha256": sha, "target_dir": "mods"}])
+    sync.sync_manifest(man, tmp_path, "k", _boom)
+
+
+def test_mirror_borra_lo_ausente(tmp_path):
+    (tmp_path / "mods").mkdir()
+    (tmp_path / "mods" / "viejo.jar").write_bytes(b"x")
+    (tmp_path / "saves").mkdir()
+    (tmp_path / "saves" / "mundo").write_bytes(b"no-tocar")
+    data = b"nuevo"
+    sha = _sha(data)
+    man = _manifest([{"filename": "nuevo.jar", "sha256": sha, "target_dir": "mods"}])
+    sync.sync_manifest(man, tmp_path, "k", _fake_download({sha: data}))
+    assert not (tmp_path / "mods" / "viejo.jar").exists()
+    assert (tmp_path / "mods" / "nuevo.jar").exists()
+    assert (tmp_path / "saves" / "mundo").read_bytes() == b"no-tocar"  # saves intacto
+
+
+def test_sha_no_coincide_falla(tmp_path):
+    man = _manifest([{"filename": "x.jar", "sha256": "deadbeef", "target_dir": "mods"}])
+
+    def download(sha256, key, dest, progress=None):
+        Path(dest).parent.mkdir(parents=True, exist_ok=True)
+        Path(dest).write_bytes(b"contenido-que-no-corresponde")
+
+    with pytest.raises(ValueError):
+        sync.sync_manifest(man, tmp_path, "k", download, attempts=1)
