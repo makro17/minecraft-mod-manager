@@ -1,0 +1,77 @@
+"""C4 · flujo de onboarding ZeroTier en el cliente (GUI)."""
+from __future__ import annotations
+
+import webbrowser
+from tkinter import messagebox, simpledialog
+
+from .. import api, config, zerotier
+
+DOWNLOAD_URL = "https://www.zerotier.com/download/"
+
+
+def _ask_name(parent, default: str):
+    """Pide un nombre obligatorio, con el username como valor por defecto."""
+    while True:
+        name = simpledialog.askstring(
+            "Tu nombre",
+            "Nombre con el que el admin te identificará (obligatorio):",
+            initialvalue=default,
+            parent=parent,
+        )
+        if name is None:
+            return None  # cancelado
+        name = name.strip()
+        if name:
+            return name
+        messagebox.showwarning("Nombre obligatorio", "Tienes que poner un nombre.", parent=parent)
+
+
+def ensure_access(parent, key: str) -> None:
+    if zerotier.is_authorized():
+        messagebox.showinfo("ZeroTier", "Ya estás en la red. Puedes conectar al servidor.", parent=parent)
+        return
+
+    if not zerotier.is_installed():
+        if messagebox.askyesno(
+            "ZeroTier no instalado",
+            "Necesitas ZeroTier para conectar a este servidor.\n¿Abrir la página de descarga?",
+            parent=parent,
+        ):
+            webbrowser.open(DOWNLOAD_URL)
+        return
+
+    node = zerotier.node_id()
+    if not node:
+        messagebox.showerror(
+            "ZeroTier", "No pude leer tu ID de ZeroTier. ¿Está arrancado el servicio?", parent=parent
+        )
+        return
+
+    name = _ask_name(parent, config.get_username())
+    if not name:
+        return
+    # Si aún no había username, el nombre de la solicitud pasa a ser el username.
+    if not config.get_username():
+        config.set_username(name)
+
+    try:
+        zerotier.join()
+    except Exception as e:  # noqa: BLE001
+        messagebox.showerror(
+            "ZeroTier",
+            f"No pude unirme a la red: {e}\n\nProbablemente haya que ejecutar la app como administrador.",
+            parent=parent,
+        )
+        return
+
+    try:
+        api.zt_request(key, node, name)
+    except api.PubError as e:
+        messagebox.showerror("ZeroTier", f"No pude enviar la solicitud: {e}", parent=parent)
+        return
+
+    messagebox.showinfo(
+        "Solicitud enviada",
+        f"Enviada como «{name}». Cuando el admin te autorice, podrás conectar al servidor.",
+        parent=parent,
+    )

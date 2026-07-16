@@ -12,7 +12,7 @@ from .loaders.base import get_installer
 def install_server(server: dict, official_dir: Path, *, java: Path, events, cancel,
                    get_manifest=api.get_manifest, installer_for=get_installer,
                    sync_fn=sync.sync_manifest, write_profile=launcher.write_profile,
-                   download_file=api.download_file) -> int:
+                   download_file=api.download_file, mirror_shaders: bool = True) -> int:
     def status(text):
         events("status", text=text)
 
@@ -33,9 +33,12 @@ def install_server(server: dict, official_dir: Path, *, java: Path, events, canc
 
     status("Descargando modpack…")
     sync_fn(manifest, instance, key, download_file, cancel=cancel,
-            progress=lambda d, t, l: events("progress", done=d, total=t, label=l))
+            progress=lambda d, t, l: events("progress", done=d, total=t, label=l),
+            mirror_shaders=mirror_shaders)
 
     write_profile(official_dir, f"mmm-{slug}", server["name"], version_id, instance)
+    from . import instances
+    instances.write_installed_version(instance, int(manifest["version"]))
     status("Completado")
     return int(manifest["version"])
 
@@ -48,7 +51,8 @@ class InstallWorker:
         self._thread: threading.Thread | None = None
         self.result: int | None = None
 
-    def start(self, server: dict, official_dir: Path, java: Path) -> None:
+    def start(self, server: dict, official_dir: Path, java: Path,
+              mirror_shaders: bool = True) -> None:
         def emit(kind, **kw):
             self.q.put((kind, kw))
 
@@ -56,7 +60,7 @@ class InstallWorker:
             try:
                 self.result = install_server(
                     server, official_dir, java=java, events=emit,
-                    cancel=self._cancel.is_set,
+                    cancel=self._cancel.is_set, mirror_shaders=mirror_shaders,
                 )
                 self.q.put(("done", {"version": self.result}))
             except Exception as e:  # noqa: BLE001 — se reporta a la UI

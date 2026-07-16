@@ -18,8 +18,9 @@ def test_install_server_orquesta(tmp_path):
                 "loader_version": "21.1.224", "files": []}
     written = {}
 
-    def fake_sync(man, inst, key, dl, cancel=None, progress=None):
+    def fake_sync(man, inst, key, dl, cancel=None, progress=None, mirror_shaders=True):
         written["sync"] = (man is manifest, str(inst))
+        written["mirror_shaders"] = mirror_shaders
 
     def fake_write_profile(official_dir, pk, name, vid, game_dir, icon="Furnace"):
         written["profile"] = (pk, vid, str(game_dir))
@@ -31,9 +32,11 @@ def test_install_server_orquesta(tmp_path):
         installer_for=lambda loader: _FakeInstaller(),
         sync_fn=fake_sync, write_profile=fake_write_profile,
         download_file=lambda *a, **k: None,
+        mirror_shaders=False,
     )
     assert version == 5
     assert written["sync"][0] is True
+    assert written["mirror_shaders"] is False  # C2: se propaga la elección de shaders
     assert written["profile"][0] == "mmm-papulandia"
     assert written["profile"][1] == "neoforge-21.1.224"
     assert any(k == "status" for k, _ in events)

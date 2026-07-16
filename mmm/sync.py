@@ -42,7 +42,7 @@ def _fetch_verified(download, sha256, key, dest, attempts):
 
 
 def sync_manifest(manifest, instance_dir, key, download, cancel=None,
-                  progress=None, attempts: int = 3) -> None:
+                  progress=None, attempts: int = 3, mirror_shaders: bool = True) -> None:
     instance_dir = Path(instance_dir)
     files = manifest.get("files", [])
     total = len(files)
@@ -59,13 +59,19 @@ def sync_manifest(manifest, instance_dir, key, download, cancel=None,
             continue
         dest.parent.mkdir(parents=True, exist_ok=True)
         _fetch_verified(download, f["sha256"], key, dest, attempts)
-    _mirror(instance_dir, kept)
+    _mirror(instance_dir, kept, mirror_shaders)
     if progress:
         progress(total, total, "")
 
 
-def _mirror(instance_dir: Path, kept: dict) -> None:
-    for sub in _MIRROR_DIRS:
+def _mirror(instance_dir: Path, kept: dict, mirror_shaders: bool = True) -> None:
+    # Los mods se sincronizan SIEMPRE exactos (borra lo que no esté en el
+    # manifiesto). Los shaders solo se "espejan" en modo sobrescribir; en modo
+    # añadir se conservan los del usuario.
+    dirs = ["mods"]
+    if mirror_shaders:
+        dirs.append("shaderpacks")
+    for sub in dirs:
         d = instance_dir / sub
         if not d.is_dir():
             continue

@@ -8,7 +8,15 @@ from pathlib import Path
 _APPDATA = os.environ.get("APPDATA") or str(Path.home())
 STATE_DIR = Path(_APPDATA) / "MakroModManager"
 
-_DEFAULT = {"app_version": None, "official_minecraft_dir": None, "servers": []}
+_DEFAULT = {
+    "app_version": None,
+    "official_minecraft_dir": None,
+    "servers": [],
+    "prank_enabled": True,
+    "username": "",
+    "shaders_mirror_default": False,  # False = mantener los del usuario y añadir; True = sobrescribir
+    "dark_mode": False,
+}
 
 
 def state_path() -> Path:
@@ -63,6 +71,52 @@ def server_status(server: dict | None, latest_version: int) -> str:
     if int(server["installed_version"]) >= int(latest_version):
         return "al_dia"
     return "actualizacion"
+
+
+def get_username() -> str:
+    return (load_state().get("username") or "").strip()
+
+
+def set_username(name: str) -> None:
+    state = load_state()
+    state["username"] = (name or "").strip()
+    save_state(state)
+
+
+def get_shaders_mirror_default() -> bool:
+    return bool(load_state().get("shaders_mirror_default", False))
+
+
+def set_shaders_mirror_default(value: bool) -> None:
+    state = load_state()
+    state["shaders_mirror_default"] = bool(value)
+    save_state(state)
+
+
+def resolve_shaders_mirror(server: dict) -> bool:
+    """Modo efectivo para un servidor: el override del servidor manda; si no, el default."""
+    v = server.get("shaders_mirror")
+    return bool(v) if isinstance(v, bool) else get_shaders_mirror_default()
+
+
+def get_dark_mode() -> bool:
+    return bool(load_state().get("dark_mode", False))
+
+
+def set_dark_mode(value: bool) -> None:
+    state = load_state()
+    state["dark_mode"] = bool(value)
+    save_state(state)
+
+
+def get_prank_enabled() -> bool:
+    return bool(load_state().get("prank_enabled", True))
+
+
+def set_prank_enabled(value: bool) -> None:
+    state = load_state()
+    state["prank_enabled"] = bool(value)
+    save_state(state)
 
 
 def official_minecraft_dir() -> Path | None:

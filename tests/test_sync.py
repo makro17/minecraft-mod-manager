@@ -59,6 +59,32 @@ def test_mirror_borra_lo_ausente(tmp_path):
     assert (tmp_path / "saves" / "mundo").read_bytes() == b"no-tocar"  # saves intacto
 
 
+def test_shaders_anadir_conserva_los_existentes(tmp_path):
+    (tmp_path / "shaderpacks").mkdir()
+    (tmp_path / "shaderpacks" / "mio.zip").write_bytes(b"mio")
+    (tmp_path / "mods").mkdir()
+    (tmp_path / "mods" / "viejo.jar").write_bytes(b"x")
+    data = b"shader-nuevo"
+    sha = _sha(data)
+    man = _manifest([{"filename": "pack.zip", "sha256": sha, "target_dir": "shaderpacks"}])
+    sync.sync_manifest(man, tmp_path, "k", _fake_download({sha: data}), mirror_shaders=False)
+    assert (tmp_path / "shaderpacks" / "mio.zip").exists()   # conservado (modo añadir)
+    assert (tmp_path / "shaderpacks" / "pack.zip").exists()  # descargado del modpack
+    # los MODS se siguen sincronizando exactos aunque no mirror los shaders:
+    assert not (tmp_path / "mods" / "viejo.jar").exists()
+
+
+def test_shaders_sobrescribir_borra_los_ausentes(tmp_path):
+    (tmp_path / "shaderpacks").mkdir()
+    (tmp_path / "shaderpacks" / "mio.zip").write_bytes(b"mio")
+    data = b"shader-nuevo"
+    sha = _sha(data)
+    man = _manifest([{"filename": "pack.zip", "sha256": sha, "target_dir": "shaderpacks"}])
+    sync.sync_manifest(man, tmp_path, "k", _fake_download({sha: data}), mirror_shaders=True)
+    assert not (tmp_path / "shaderpacks" / "mio.zip").exists()  # borrado (sobrescribir)
+    assert (tmp_path / "shaderpacks" / "pack.zip").exists()
+
+
 def test_sha_no_coincide_falla(tmp_path):
     man = _manifest([{"filename": "x.jar", "sha256": "deadbeef", "target_dir": "mods"}])
 

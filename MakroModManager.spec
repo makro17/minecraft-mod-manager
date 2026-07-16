@@ -6,7 +6,7 @@ a = Analysis(
     ['run.py'],
     pathex=[],
     binaries=[],
-    datas=[('runtime', 'runtime')],   # JRE jlink -> se copia junto al exe
+    datas=[('runtime', 'runtime'), ('assets', 'assets')],   # JRE jlink + assets (icono, imagen broma)
     hiddenimports=['tkinter', 'tkinter.ttk'],
     hookspath=[],
     hooksconfig={},

@@ -53,6 +53,18 @@ def download_file(sha256: str, key: str, dest: Path, progress=None) -> None:
     _stream_to(_get(f"/pub/file/{sha256}", params={"key": key}, stream=True), dest, progress)
 
 
+def zt_request(key: str, node_id: str, name: str) -> dict:
+    """C4 · registra la solicitud de acceso ZeroTier (node_id + nombre)."""
+    try:
+        r = SESSION.post(BASE_URL + "/pub/zt/request", params={"key": key},
+                         json={"node_id": node_id, "name": name}, timeout=TIMEOUT)
+    except requests.exceptions.RequestException as e:
+        raise PubError(f"Error de red: {e}", status=None) from e
+    if r.status_code != 200:
+        raise PubError(f"HTTP {r.status_code} en /pub/zt/request", status=r.status_code)
+    return r.json()
+
+
 def app_version() -> dict:
     return _get("/pub/app/version").json()
 

@@ -17,3 +17,11 @@ def test_action_label():
     assert fmt.action_label("no_instalado") == "Instalar"
     assert fmt.action_label("actualizacion") == "Actualizar"
     assert fmt.action_label("al_dia") == "Jugar"
+
+
+def test_human_size():
+    assert fmt.human_size(0) == "0 B"
+    assert fmt.human_size(1023) == "1023 B"
+    assert fmt.human_size(1024) == "1.0 KB"
+    assert fmt.human_size(1048576) == "1.0 MB"
+    assert fmt.human_size(1073741824) == "1.0 GB"
