@@ -5,6 +5,8 @@ import json
 import os
 from pathlib import Path
 
+from . import secretstore
+
 _APPDATA = os.environ.get("APPDATA") or str(Path.home())
 STATE_DIR = Path(_APPDATA) / "MakroModManager"
 
@@ -31,14 +33,45 @@ def load_state() -> dict:
     data = json.loads(p.read_text(encoding="utf-8"))
     for k, v in _DEFAULT.items():
         data.setdefault(k, v)
+    for server in data.get("servers", []):
+        _decrypt_key(server)
     return data
 
 
 def save_state(state: dict) -> None:
     STATE_DIR.mkdir(parents=True, exist_ok=True)
+    to_write = {**state, "servers": [_encrypt_server(s) for s in state.get("servers", [])]}
     tmp = state_path().with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(state, indent=2, ensure_ascii=False), encoding="utf-8")
+    tmp.write_text(json.dumps(to_write, indent=2, ensure_ascii=False), encoding="utf-8")
     os.replace(tmp, state_path())
+
+
+def _decrypt_key(server: dict) -> None:
+    """Descifra en sitio el `key` de un server cargado. Deja las claves en claro
+    legadas (sin prefijo) intactas para migrarlas al guardar. Si el token no
+    descifra, marca el server como bloqueado conservando el blob original."""
+    token = server.get("key")
+    if not isinstance(token, str) or not token.startswith(("dpapi:", "plain:")):
+        return
+    try:
+        server["key"] = secretstore.unprotect(token)
+    except secretstore.CannotDecrypt:
+        server["_key_cipher"] = token
+        server["key"] = None
+        server["key_locked"] = True
+
+
+def _encrypt_server(server: dict) -> dict:
+    """Copia del server lista para persistir: `key` cifrada y transitorios fuera.
+    No muta el server en memoria."""
+    out = {k: v for k, v in server.items() if k not in ("key_locked", "_key_cipher")}
+    if server.get("key_locked") and server.get("_key_cipher"):
+        out["key"] = server["_key_cipher"]  # preserva el blob original intacto
+        return out
+    key = server.get("key")
+    if isinstance(key, str) and key:
+        out["key"] = secretstore.protect(key)
+    return out
 
 
 def list_servers() -> list[dict]:

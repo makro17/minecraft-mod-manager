@@ -107,3 +107,84 @@ def test_zt_onboarded_por_defecto_desactivado():
 def test_set_zt_onboarded_persiste():
     config.set_zt_onboarded(True)
     assert config.get_zt_onboarded() is True
+
+
+# ── Cifrado de la clave de distribución (Seguridad #4) ───────────────────────
+from mmm import secretstore  # noqa: E402
+
+
+@pytest.fixture
+def fake_dpapi(monkeypatch):
+    """Cifrado reversible y determinista, con prefijo reconocible por config."""
+    def protect(s):
+        return "dpapi:v1:" + s
+
+    def unprotect(t):
+        if not t.startswith("dpapi:v1:"):
+            raise secretstore.CannotDecrypt("prefijo malo")
+        return t[len("dpapi:v1:"):]
+
+    monkeypatch.setattr(config.secretstore, "protect", protect)
+    monkeypatch.setattr(config.secretstore, "unprotect", unprotect)
+
+
+def _raw_state():
+    import json
+    return json.loads(config.state_path().read_text(encoding="utf-8"))
+
+
+def test_guardar_cifra_la_clave_en_disco(fake_dpapi):
+    config.upsert_server({"slug": "papulandia", "name": "P", "key": "PPL-AAAA-BBBB-CCCC"})
+    raw = _raw_state()
+    assert raw["servers"][0]["key"] == "dpapi:v1:PPL-AAAA-BBBB-CCCC"  # token, no plano
+
+
+def test_cargar_descifra_la_clave(fake_dpapi):
+    config.upsert_server({"slug": "papulandia", "name": "P", "key": "PPL-AAAA-BBBB-CCCC"})
+    assert config.get_server("papulandia")["key"] == "PPL-AAAA-BBBB-CCCC"
+
+
+def test_migracion_de_clave_en_claro(fake_dpapi):
+    import json
+    config.STATE_DIR.mkdir(parents=True, exist_ok=True)
+    legacy = {**config._DEFAULT,
+              "servers": [{"slug": "papulandia", "name": "P", "key": "PPL-AAAA-BBBB-CCCC"}]}
+    config.state_path().write_text(json.dumps(legacy), encoding="utf-8")
+    # Al cargar, la clave en claro se deja tal cual (sin prefijo aún).
+    st = config.load_state()
+    assert st["servers"][0]["key"] == "PPL-AAAA-BBBB-CCCC"
+    # Al guardar, se migra a token cifrado.
+    config.save_state(st)
+    raw = _raw_state()
+    assert raw["servers"][0]["key"].startswith("dpapi:v1:")
+
+
+def test_clave_ilegible_marca_bloqueado_y_preserva_blob(monkeypatch):
+    def unprotect_falla(t):
+        raise secretstore.CannotDecrypt("de otra máquina")
+
+    monkeypatch.setattr(config.secretstore, "unprotect", unprotect_falla)
+    import json
+    stored = {**config._DEFAULT,
+              "servers": [{"slug": "papulandia", "name": "P", "key": "dpapi:v1:BLOBORIGINAL"}]}
+    config.STATE_DIR.mkdir(parents=True, exist_ok=True)
+    config.state_path().write_text(json.dumps(stored), encoding="utf-8")
+
+    st = config.load_state()
+    s = st["servers"][0]
+    assert s["key"] is None
+    assert s["key_locked"] is True
+
+    # Al re-guardar, el blob original se conserva intacto y no se filtran transitorios.
+    config.save_state(st)
+    raw = _raw_state()
+    assert raw["servers"][0]["key"] == "dpapi:v1:BLOBORIGINAL"
+    assert "key_locked" not in raw["servers"][0]
+    assert "_key_cipher" not in raw["servers"][0]
+
+
+def test_guardar_no_muta_el_estado_en_memoria(fake_dpapi):
+    st = {**config._DEFAULT,
+          "servers": [{"slug": "papulandia", "name": "P", "key": "PPL-AAAA-BBBB-CCCC"}]}
+    config.save_state(st)
+    assert st["servers"][0]["key"] == "PPL-AAAA-BBBB-CCCC"  # sigue en claro en memoria
