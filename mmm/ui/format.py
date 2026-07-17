@@ -9,6 +9,7 @@ _STATUS = {
     "no_instalado": ("○", "No instalado"),
     "al_dia": ("●", "Actualizado"),
     "actualizacion": ("⬆", "Actualización disponible"),
+    "clave_bloqueada": ("🔒", "Reintroduce la clave"),
 }
 _ACTION = {"no_instalado": "Instalar", "al_dia": "Jugar", "actualizacion": "Actualizar"}
 

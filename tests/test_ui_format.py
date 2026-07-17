@@ -19,6 +19,10 @@ def test_action_label():
     assert fmt.action_label("al_dia") == "Jugar"
 
 
+def test_status_label_clave_bloqueada():
+    assert fmt.status_label("clave_bloqueada") == ("🔒", "Reintroduce la clave")
+
+
 def test_human_size():
     assert fmt.human_size(0) == "0 B"
     assert fmt.human_size(1023) == "1023 B"
