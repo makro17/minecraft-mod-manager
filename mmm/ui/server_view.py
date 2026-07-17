@@ -1,4 +1,4 @@
-"""Vista de detalle de un servidor: vista previa del contenido → instalar/actualizar."""
+"""Vista de detalle de un servidor: lista del contenido siempre visible + instalar/actualizar directo."""
 from __future__ import annotations
 
 import threading
@@ -18,15 +18,18 @@ class ServerView(ttk.Frame):
         self.server = server
         self.on_back = on_back
         self.worker: InstallWorker | None = None
-        self._preview: ttk.Frame | None = None
         self._mirror_shaders = tk.IntVar(value=0)  # 0 = añadir, 1 = sobrescribir
 
         self.back_button = ttk.Button(self, text="← Volver", command=self._back)
         self.back_button.pack(anchor="w")
         ttk.Label(self, text=server["name"], font=("Segoe UI", 16, "bold")).pack(anchor="w", pady=(8, 0))
         ttk.Label(self, text=server.get("motd", "")).pack(anchor="w")
-        ttk.Label(self, text=f'{server.get("loader","")} {server.get("minecraft_version","")} '
-                             f'(loader {server.get("loader_version","")})').pack(anchor="w", pady=(4, 4))
+        self.version_label = ttk.Label(
+            self,
+            text=f'{server.get("loader","")} {server.get("minecraft_version","")} '
+                 f'(loader {server.get("loader_version","")})',
+        )
+        self.version_label.pack(anchor="w", pady=(4, 4))
 
         self.status_label = ttk.Label(self, text="Comprobando estado…", foreground="gray")
         self.status_label.pack(anchor="w", pady=(0, 8))
@@ -35,7 +38,8 @@ class ServerView(ttk.Frame):
         self.progress.pack(fill="x")
 
         # El botón se muestra según el estado (oculto cuando ya está al día).
-        self.action = ttk.Button(self, text="Instalar", command=self._load_preview)
+        # Instala/actualiza DIRECTAMENTE (sin paso de confirmación).
+        self.action = ttk.Button(self, text="Instalar", command=self._do_install)
 
         self.zt_button = ttk.Button(self, text="Unirse a la red (ZeroTier)", command=self._join_network)
         self.zt_button.pack(pady=(0, 4))
@@ -46,8 +50,13 @@ class ServerView(ttk.Frame):
         self.hint = ttk.Label(self, text="", wraplength=560, foreground="gray")
         self.hint.pack(anchor="w")
 
+        # Lista del contenido del modpack, SIEMPRE visible bajo los botones.
+        self.content = ttk.Frame(self)
+        self.content.pack(fill="both", expand=True, pady=(10, 0))
+
         self._poll_zt()
         self._refresh_status()
+        self._load_content()
 
         if auto_update:  # "Actualizar" desde la lista: usa el modo de shaders efectivo
             self.after(300, lambda: self._start_install(config.resolve_shaders_mirror(self.server)))
@@ -158,52 +167,47 @@ class ServerView(ttk.Frame):
             messagebox.showerror("ZeroTier", f"No pude desconectar: {e}", parent=self)
         self._poll_zt()
 
-    # ── Fase 1: vista previa del contenido ───────────────────────────────────
-    def _load_preview(self):
-        self.action.config(state="disabled")
-        self.progress.set_status("Obteniendo lista de contenido…")
+    # ── Contenido del modpack (lista SIEMPRE visible bajo los botones) ────────
+    def _load_content(self):
+        self._set_content_message("Obteniendo lista de contenido…")
 
         def run():
             try:
                 manifest = api.get_manifest(self.server["key"])
-            except Exception as e:  # noqa: BLE001 — se reporta a la UI
-                self.after(0, lambda: self._preview_error(str(e)))
+            except Exception as e:  # noqa: BLE001 — se muestra en el panel
+                if self.winfo_exists():
+                    self.after(0, lambda: self._set_content_message(f"No se pudo obtener la lista: {e}"))
                 return
-            self.after(0, lambda: self._show_preview(manifest))
+            if self.winfo_exists():
+                self.after(0, lambda: self._render_content(manifest))
 
         threading.Thread(target=run, daemon=True).start()
 
-    def _preview_error(self, message: str):
-        self.progress.set_status("Error al obtener la lista.")
-        dialogs.show_error(self, "Error", message)
-        self.action.config(state="normal")
+    def _clear_content(self):
+        for w in self.content.winfo_children():
+            w.destroy()
 
-    def _show_preview(self, manifest: dict):
-        self.progress.set_status("")
-        self.action.pack_forget()
-        if self._preview is not None:
-            self._preview.destroy()
-        pv = ttk.Frame(self)
-        # En el sitio del botón (encima de la sección ZeroTier), no enterrada al
-        # final del layout: si no, «Actualizar» oculta el botón y la vista previa
-        # queda fuera de vista y parece que no pasó nada.
-        try:
-            pv.pack(fill="both", expand=True, before=self.zt_button)
-        except tk.TclError:  # el botón ZT puede estar oculto (estado 'pendiente')
-            pv.pack(fill="both", expand=True, before=self.zt_status)
-        self._preview = pv
+    def _set_content_message(self, text: str):
+        self._clear_content()
+        ttk.Label(self.content, text=text, foreground="gray").pack(anchor="w")
+
+    def _render_content(self, manifest: dict):
+        if not self.winfo_exists():
+            return
+        self._clear_content()
 
         files = manifest.get("files", [])
         mods = [f for f in files if f.get("target_dir") == "mods"]
         shaders = [f for f in files if f.get("target_dir") == "shaderpacks"]
         total = sum(int(f.get("size") or 0) for f in files)
 
-        ttk.Label(pv, text=f"Se descargará · {len(mods)} mods, {len(shaders)} shaders · {human_size(total)}",
+        ttk.Label(self.content,
+                  text=f"Contenido del modpack · {len(mods)} mods, {len(shaders)} shaders · {human_size(total)}",
                   font=("Segoe UI", 10, "bold")).pack(anchor="w", pady=(4, 2))
-        ttk.Label(pv, text="(los archivos que ya tengas se omiten automáticamente)",
+        ttk.Label(self.content, text="(al actualizar, los archivos que ya tengas se omiten automáticamente)",
                   foreground="gray").pack(anchor="w")
 
-        box = ttk.Frame(pv)
+        box = ttk.Frame(self.content)
         box.pack(fill="both", expand=True, pady=6)
         sb = ttk.Scrollbar(box, orient="vertical")
         lst = tk.Listbox(box, height=10, yscrollcommand=sb.set)
@@ -215,34 +219,20 @@ class ServerView(ttk.Frame):
 
         self._mirror_shaders.set(1 if config.resolve_shaders_mirror(self.server) else 0)
         if shaders:
-            sf = ttk.LabelFrame(pv, text="Shaders del modpack")
+            sf = ttk.LabelFrame(self.content, text="Shaders del modpack")
             sf.pack(fill="x", pady=6)
             ttk.Radiobutton(sf, text="Añadir a los que ya tengo", variable=self._mirror_shaders, value=0).pack(anchor="w")
             ttk.Radiobutton(sf, text="Sobrescribir toda la carpeta de shaders", variable=self._mirror_shaders, value=1).pack(anchor="w")
 
-        bf = ttk.Frame(pv)
-        bf.pack(fill="x", pady=6)
-        ttk.Button(bf, text="Confirmar e instalar", command=lambda: self._confirm_install(manifest)).pack(side="left")
-        ttk.Button(bf, text="Cancelar", command=self._cancel_preview).pack(side="left", padx=6)
-
-    def _cancel_preview(self):
-        if self._preview is not None:
-            self._preview.destroy()
-            self._preview = None
-        self._refresh_status()
-
-    # ── Fase 2: instalación ──────────────────────────────────────────────────
-    def _confirm_install(self, manifest: dict):
-        # La elección del usuario aquí queda como override para ESE servidor.
+    # ── Instalación / actualización (directa) ────────────────────────────────
+    def _do_install(self):
+        # El botón instala/actualiza directamente con el modo de shaders elegido.
         mirror = bool(self._mirror_shaders.get())
         self.server["shaders_mirror"] = mirror
         config.upsert_server(self.server)
         self._start_install(mirror)
 
     def _start_install(self, mirror_shaders: bool):
-        if self._preview is not None:
-            self._preview.destroy()
-            self._preview = None
         self._hide_action()
         official = config.official_minecraft_dir() or launcher.default_official_dir()
         instance = instances.instance_dir(self.server["slug"], official)
@@ -256,6 +246,7 @@ class ServerView(ttk.Frame):
     def _restore_action(self):
         self.back_button.config(state="normal")
         self._refresh_status()
+        self._load_content()
 
     def _poll(self):
         if not self.winfo_exists():
