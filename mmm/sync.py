@@ -1,10 +1,11 @@
 """Motor de sincronización: descarga + verificación sha256 + mirror del manifiesto."""
 from __future__ import annotations
 
-import hashlib
 import os
 import time
 from pathlib import Path
+
+from .hashing import sha256_file
 
 _MIRROR_DIRS = ("mods", "shaderpacks")
 
@@ -13,12 +14,31 @@ class Cancelado(Exception):
     pass
 
 
-def sha256_file(path: Path) -> str:
-    h = hashlib.sha256()
-    with open(path, "rb") as f:
-        for chunk in iter(lambda: f.read(1 << 20), b""):
-            h.update(chunk)
-    return h.hexdigest()
+class ManifiestoInseguro(ValueError):
+    """El manifiesto (no confiable) pide escribir fuera de las carpetas permitidas."""
+
+
+def _es_nombre_simple(name) -> bool:
+    """True solo si `name` es un nombre de archivo plano y seguro.
+
+    Rechaza vacío, `.`/`..`, separadores de ruta (POSIX y Windows), dos puntos
+    (unidad Windows / ADS) y byte nulo. Así ningún `filename` del manifiesto
+    puede escapar de su carpeta destino.
+    """
+    return (
+        isinstance(name, str)
+        and name not in ("", ".", "..")
+        and not any(c in name for c in ("/", "\\", ":", "\x00"))
+    )
+
+
+def _safe_dest(instance_dir: Path, target_dir, filename) -> Path:
+    """Valida `target_dir`/`filename` (no confiables) y devuelve el destino seguro."""
+    if target_dir not in _MIRROR_DIRS:
+        raise ManifiestoInseguro(f"target_dir no permitido: {target_dir!r}")
+    if not _es_nombre_simple(filename):
+        raise ManifiestoInseguro(f"filename inseguro: {filename!r}")
+    return instance_dir / target_dir / filename
 
 
 def _fetch_verified(download, sha256, key, dest, attempts):
@@ -50,9 +70,8 @@ def sync_manifest(manifest, instance_dir, key, download, cancel=None,
     for i, f in enumerate(files):
         if cancel and cancel():
             raise Cancelado()
-        target_dir = f["target_dir"]
-        dest = instance_dir / target_dir / f["filename"]
-        kept.setdefault(target_dir, set()).add(f["filename"])
+        dest = _safe_dest(instance_dir, f["target_dir"], f["filename"])
+        kept[f["target_dir"]].add(f["filename"])
         if progress:
             progress(i, total, f["filename"])
         if dest.exists() and sha256_file(dest) == f["sha256"]:

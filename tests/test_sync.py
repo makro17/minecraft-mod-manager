@@ -94,3 +94,45 @@ def test_sha_no_coincide_falla(tmp_path):
 
     with pytest.raises(ValueError):
         sync.sync_manifest(man, tmp_path, "k", download, attempts=1)
+
+
+# ── Seguridad: path traversal en el manifiesto (untrusted) ───────────────────
+
+def _no_debia_descargar(*a, **k):
+    raise AssertionError("no debía descargar un manifiesto inseguro")
+
+
+@pytest.mark.parametrize("mal", [
+    "../../evil.jar",       # separador POSIX + parent
+    "..\\..\\evil.jar",     # separador Windows + parent
+    "sub/evil.jar",         # subcarpeta (separador POSIX)
+    "sub\\evil.jar",        # subcarpeta (separador Windows)
+    "/etc/cron.d/evil",     # ruta absoluta POSIX
+    "C:\\Windows\\evil",    # ruta absoluta Windows
+    "..",                   # parent puro
+    ".",                    # cwd puro
+    "",                     # vacío
+])
+def test_rechaza_filename_inseguro(tmp_path, mal):
+    man = _manifest([{"filename": mal, "sha256": _sha(b"x"), "target_dir": "mods"}])
+    with pytest.raises(sync.ManifiestoInseguro):
+        sync.sync_manifest(man, tmp_path, "k", _no_debia_descargar)
+    # Nada escrito fuera de instance_dir.
+    assert not (tmp_path.parent / "evil.jar").exists()
+    assert list(tmp_path.rglob("evil*")) == []
+
+
+@pytest.mark.parametrize("mal", [
+    "..",                   # parent
+    "../secretos",          # escape POSIX
+    "..\\secretos",         # escape Windows
+    "config",               # dir plausible pero fuera de la whitelist
+    "mods/nested",          # subruta dentro de un dir válido
+    "/etc",                 # absoluto
+    "",                     # vacío
+])
+def test_rechaza_target_dir_inseguro(tmp_path, mal):
+    man = _manifest([{"filename": "ok.jar", "sha256": _sha(b"x"), "target_dir": mal}])
+    with pytest.raises(sync.ManifiestoInseguro):
+        sync.sync_manifest(man, tmp_path, "k", _no_debia_descargar)
+    assert list(tmp_path.parent.rglob("ok.jar")) == []
