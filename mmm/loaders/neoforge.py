@@ -6,7 +6,7 @@ from pathlib import Path
 
 import requests
 
-from .. import procutil
+from .. import hashing, procutil
 from ..launcher import ensure_launcher_profiles
 from .base import LoaderInstaller
 
@@ -20,6 +20,19 @@ def version_id(loader_version: str) -> str:
 
 def installer_url(loader_version: str) -> str:
     return f"{MAVEN}/{loader_version}/neoforge-{loader_version}-installer.jar"
+
+
+def sha256_url(loader_version: str) -> str:
+    return installer_url(loader_version) + ".sha256"
+
+
+def expected_sha256(loader_version: str) -> str:
+    r = SESSION.get(sha256_url(loader_version), timeout=60)
+    if r.status_code != 200:
+        raise RuntimeError(
+            f"No se pudo obtener el checksum de NeoForge (HTTP {r.status_code})."
+        )
+    return r.text.strip()
 
 
 def build_command(java: Path, installer_path: Path, official_dir: Path) -> list[str]:
@@ -37,6 +50,14 @@ def download_installer(loader_version: str, dest: Path) -> None:
         for chunk in r.iter_content(1 << 16):
             if chunk:
                 f.write(chunk)
+    try:
+        hashing.verify_sha256(dest, expected_sha256(loader_version))
+    except (hashing.HashInvalido, RuntimeError):
+        try:
+            dest.unlink()
+        except OSError:
+            pass
+        raise
 
 
 def _run(cmd: list[str]):

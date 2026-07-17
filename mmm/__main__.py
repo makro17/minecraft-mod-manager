@@ -7,7 +7,7 @@ import tempfile
 from pathlib import Path
 from tkinter import messagebox
 
-from . import api, config, updater
+from . import api, config, hashing, updater
 from .version import __version__
 
 
@@ -31,6 +31,19 @@ def _ask(info) -> bool:
 def _download_and_launch(info) -> None:
     dest = Path(tempfile.gettempdir()) / "MakroModManager_setup.exe"
     api.download_app(dest)
+    try:
+        hashing.verify_sha256(dest, info.get("sha256"))
+    except hashing.HashInvalido as e:
+        try:
+            dest.unlink()
+        except OSError:
+            pass
+        messagebox.showerror(
+            "Actualización cancelada",
+            "El instalador descargado no superó la verificación de integridad "
+            f"y no se ejecutará.\n\n{e}",
+        )
+        return
     subprocess.Popen([str(dest)])
 
 
