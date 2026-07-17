@@ -48,3 +48,17 @@ def test_zt_request_postea_key_y_body(monkeypatch):
     assert calls["params"] == {"key": "PPL-AAAA-BBBB-CCCC"}
     assert calls["json"] == {"node_id": "abc123", "name": "PC de Marco"}
     assert calls["url"].endswith("/pub/zt/request")
+
+
+def test_ui_action_segun_estado_y_onboarded():
+    # No unido y nunca onboarded → onboarding completo (pide nombre + solicita).
+    assert zerotier.ui_action("not_joined", onboarded=False) == "join"
+    # No unido pero ya onboarded (desconectó) → reconectar directo, SIN re-solicitar.
+    assert zerotier.ui_action("not_joined", onboarded=True) == "reconnect"
+    # Pendiente → sin acción: no dejar reenviar mientras espera autorización.
+    assert zerotier.ui_action("pending", onboarded=False) == "pending"
+    assert zerotier.ui_action("pending", onboarded=True) == "pending"
+    # Autorizado → poder desconectar.
+    assert zerotier.ui_action("authorized", onboarded=True) == "disconnect"
+    # No instalado → guiar a instalar.
+    assert zerotier.ui_action("not_installed", onboarded=False) == "install"

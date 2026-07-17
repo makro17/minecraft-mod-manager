@@ -113,3 +113,22 @@ def is_authorized(nwid: str = NWID, prefix: str = SUBNET_PREFIX) -> bool:
     except Exception:
         return False
     return network_state(nets, nwid, prefix) == "authorized"
+
+
+def ui_action(state: str, onboarded: bool) -> str:
+    """Acción de UI a ofrecer según el estado de acceso y si ya se hizo onboarding.
+
+    - 'install'    → ZeroTier no instalado (guiar a la descarga).
+    - 'join'       → onboarding completo: pide nombre + envía la solicitud.
+    - 'reconnect'  → ya onboarded pero desconectado: reconectar directo, SIN re-solicitar.
+    - 'pending'    → solicitud enviada, esperando autorización: sin acción (no reenviar).
+    - 'disconnect' → autorizado: permitir desconectar.
+    """
+    if state == "not_installed":
+        return "install"
+    if state == "pending":
+        return "pending"
+    if state == "authorized":
+        return "disconnect"
+    # not_joined
+    return "reconnect" if onboarded else "join"

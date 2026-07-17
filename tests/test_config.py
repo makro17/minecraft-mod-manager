@@ -72,3 +72,12 @@ def test_set_prank_enabled_persiste():
     assert config.get_prank_enabled() is False
     config.set_prank_enabled(True)
     assert config.get_prank_enabled() is True
+
+
+def test_zt_onboarded_por_defecto_desactivado():
+    assert config.get_zt_onboarded() is False
+
+
+def test_set_zt_onboarded_persiste():
+    config.set_zt_onboarded(True)
+    assert config.get_zt_onboarded() is True

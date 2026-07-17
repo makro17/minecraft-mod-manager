@@ -27,11 +27,9 @@ def _ask_name(parent, default: str):
 
 
 def ensure_access(parent, key: str) -> None:
-    if zerotier.is_authorized():
-        messagebox.showinfo("ZeroTier", "Ya estás en la red. Puedes conectar al servidor.", parent=parent)
-        return
+    state = zerotier.access_status()
 
-    if not zerotier.is_installed():
+    if state == "not_installed":
         if messagebox.askyesno(
             "ZeroTier no instalado",
             "Necesitas ZeroTier para conectar a este servidor.\n¿Abrir la página de descarga?",
@@ -40,6 +38,23 @@ def ensure_access(parent, key: str) -> None:
             webbrowser.open(DOWNLOAD_URL)
         return
 
+    if state == "authorized":
+        messagebox.showinfo("ZeroTier", "Ya estás en la red. Puedes conectar al servidor.", parent=parent)
+        return
+
+    if state == "pending":
+        # Ya hay una solicitud enviada: no reenviar, solo recordar que está pendiente.
+        user = config.get_username()
+        suffix = f" como «{user}»" if user else ""
+        messagebox.showinfo(
+            "Solicitud pendiente",
+            f"Ya enviaste tu solicitud{suffix}. Está pendiente de que el admin te autorice; "
+            "no hace falta reenviarla.",
+            parent=parent,
+        )
+        return
+
+    # state == "not_joined" → onboarding completo (primera vez).
     node = zerotier.node_id()
     if not node:
         messagebox.showerror(
@@ -70,6 +85,9 @@ def ensure_access(parent, key: str) -> None:
         messagebox.showerror("ZeroTier", f"No pude enviar la solicitud: {e}", parent=parent)
         return
 
+    # Marca que ya se hizo onboarding: a partir de ahora «Desconectar» + «Conectar»
+    # reconecta sin volver a pedir nombre ni reenviar solicitud.
+    config.set_zt_onboarded(True)
     messagebox.showinfo(
         "Solicitud enviada",
         f"Enviada como «{name}». Cuando el admin te autorice, podrás conectar al servidor.",

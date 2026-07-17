@@ -16,6 +16,7 @@ _DEFAULT = {
     "username": "",
     "shaders_mirror_default": False,  # False = mantener los del usuario y añadir; True = sobrescribir
     "dark_mode": False,
+    "zt_onboarded": False,  # True tras la primera solicitud enviada; permite reconectar sin re-solicitar
 }
 
 
@@ -116,6 +117,16 @@ def get_prank_enabled() -> bool:
 def set_prank_enabled(value: bool) -> None:
     state = load_state()
     state["prank_enabled"] = bool(value)
+    save_state(state)
+
+
+def get_zt_onboarded() -> bool:
+    return bool(load_state().get("zt_onboarded", False))
+
+
+def set_zt_onboarded(value: bool) -> None:
+    state = load_state()
+    state["zt_onboarded"] = bool(value)
     save_state(state)
 
 

@@ -100,12 +100,6 @@ class ServerView(ttk.Frame):
         self._poll_zt()  # refresca el estado justo después
 
     # ── Estado de acceso ZeroTier (se refresca solo) ─────────────────────────
-    _ZT_STATES = {
-        "not_installed": ("ZeroTier: no instalado", "#b0894a"),
-        "not_joined": ("ZeroTier: no estás en la red — pulsa «Unirse a la red»", "gray"),
-        "pending": ("ZeroTier: solicitud enviada · pendiente de que el admin te autorice…", "#b0894a"),
-    }
-
     def _poll_zt(self):
         if not self.winfo_exists():
             return
@@ -125,21 +119,38 @@ class ServerView(ttk.Frame):
     def _apply_zt_state(self, state: str):
         if not self.winfo_exists():
             return
-        if state == "authorized":
+        action = zerotier.ui_action(state, config.get_zt_onboarded())
+        if action == "disconnect":
             user = config.get_username()
             suffix = f" como «{user}»" if user else ""
             self.zt_status.config(text=f"ZeroTier: ✓ autorizado{suffix} — ya puedes conectar", foreground="#3a8a3a")
-            self._set_zt_button("Desconectar de la red", self._leave_network)
-        else:
-            text, color = self._ZT_STATES.get(state, ("ZeroTier: —", "gray"))
-            self.zt_status.config(text=text, foreground=color)
-            if state == "pending":
-                self.zt_button.pack_forget()
-            else:  # not_installed / not_joined
-                self._set_zt_button("Unirse a la red (ZeroTier)", self._join_network)
+            self._set_zt_button("Desconectar de la red", self._disconnect_network)
+        elif action == "pending":
+            self.zt_status.config(text="ZeroTier: solicitud enviada · pendiente de que el admin te autorice…", foreground="#b0894a")
+            self.zt_button.pack_forget()
+        elif action == "reconnect":
+            self.zt_status.config(text="ZeroTier: desconectado — pulsa «Conectar» para volver a entrar", foreground="gray")
+            self._set_zt_button("Conectar a la red", self._reconnect_network)
+        elif action == "install":
+            self.zt_status.config(text="ZeroTier: no instalado — pulsa el botón para instalarlo", foreground="#b0894a")
+            self._set_zt_button("Unirse a la red (ZeroTier)", self._join_network)
+        else:  # join
+            self.zt_status.config(text="ZeroTier: no estás en la red — pulsa «Unirse a la red»", foreground="gray")
+            self._set_zt_button("Unirse a la red (ZeroTier)", self._join_network)
         self.after(4000, self._poll_zt)
 
-    def _leave_network(self):
+    def _reconnect_network(self):
+        # Ya hicimos onboarding: el controlador nos tiene autorizados, así que basta
+        # con volver a unirse — sin pedir nombre ni reenviar solicitud.
+        try:
+            zerotier.join()
+        except Exception as e:  # noqa: BLE001
+            from tkinter import messagebox
+            messagebox.showerror("ZeroTier", f"No pude reconectar: {e}", parent=self)
+        self._poll_zt()
+
+    def _disconnect_network(self):
+        # Desconecta del túnel pero seguimos «onboarded» → luego reconectamos directo.
         try:
             zerotier.leave()
         except Exception as e:  # noqa: BLE001
@@ -173,7 +184,13 @@ class ServerView(ttk.Frame):
         if self._preview is not None:
             self._preview.destroy()
         pv = ttk.Frame(self)
-        pv.pack(fill="both", expand=True)
+        # En el sitio del botón (encima de la sección ZeroTier), no enterrada al
+        # final del layout: si no, «Actualizar» oculta el botón y la vista previa
+        # queda fuera de vista y parece que no pasó nada.
+        try:
+            pv.pack(fill="both", expand=True, before=self.zt_button)
+        except tk.TclError:  # el botón ZT puede estar oculto (estado 'pendiente')
+            pv.pack(fill="both", expand=True, before=self.zt_status)
         self._preview = pv
 
         files = manifest.get("files", [])
