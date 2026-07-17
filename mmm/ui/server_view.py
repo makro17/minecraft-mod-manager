@@ -226,6 +226,14 @@ class ServerView(ttk.Frame):
         shaders = [f for f in files if f.get("target_dir") == "shaderpacks"]
         total = sum(int(f.get("size") or 0) for f in files)
 
+        # "Shaders del modpack" va ANTES del contenido del modpack.
+        self._mirror_shaders.set(1 if config.resolve_shaders_mirror(self.server) else 0)
+        if shaders:
+            sf = ttk.LabelFrame(self.content, text="Shaders del modpack")
+            sf.pack(fill="x", pady=6)
+            ttk.Radiobutton(sf, text="Añadir a los que ya tengo", variable=self._mirror_shaders, value=0).pack(anchor="w")
+            ttk.Radiobutton(sf, text="Sobrescribir toda la carpeta de shaders", variable=self._mirror_shaders, value=1).pack(anchor="w")
+
         ttk.Label(self.content,
                   text=f"Contenido del modpack · {len(mods)} mods, {len(shaders)} shaders · {human_size(total)}",
                   font=("Segoe UI", 10, "bold")).pack(anchor="w", pady=(4, 2))
@@ -241,13 +249,6 @@ class ServerView(ttk.Frame):
         lst.pack(side="left", fill="both", expand=True)
         for f in mods + shaders:
             lst.insert("end", f'{f.get("target_dir")}/{f.get("filename")}  —  {human_size(f.get("size"))}')
-
-        self._mirror_shaders.set(1 if config.resolve_shaders_mirror(self.server) else 0)
-        if shaders:
-            sf = ttk.LabelFrame(self.content, text="Shaders del modpack")
-            sf.pack(fill="x", pady=6)
-            ttk.Radiobutton(sf, text="Añadir a los que ya tengo", variable=self._mirror_shaders, value=0).pack(anchor="w")
-            ttk.Radiobutton(sf, text="Sobrescribir toda la carpeta de shaders", variable=self._mirror_shaders, value=1).pack(anchor="w")
 
     # ── Instalación / actualización (directa) ────────────────────────────────
     def _do_install(self):
