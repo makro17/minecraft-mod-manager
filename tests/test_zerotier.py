@@ -1,4 +1,7 @@
 """C4 · núcleo de onboarding ZeroTier en el cliente."""
+import subprocess
+import sys
+
 from mmm import api, zerotier
 
 
@@ -48,6 +51,21 @@ def test_zt_request_postea_key_y_body(monkeypatch):
     assert calls["params"] == {"key": "PPL-AAAA-BBBB-CCCC"}
     assert calls["json"] == {"node_id": "abc123", "name": "PC de Marco"}
     assert calls["url"].endswith("/pub/zt/request")
+
+
+def test_run_evita_ventana_de_consola(monkeypatch):
+    captured = {}
+
+    class R:
+        stdout = "200 info abc 1.0 ONLINE"
+
+    monkeypatch.setattr(zerotier, "cli_path", lambda: "zerotier-cli")
+    monkeypatch.setattr(subprocess, "run", lambda cmd, **kw: (captured.update(kw), R())[1])
+    zerotier._run("info")
+    if sys.platform == "win32":
+        assert captured.get("creationflags", 0) & subprocess.CREATE_NO_WINDOW
+    else:
+        assert "creationflags" not in captured
 
 
 def test_ui_action_segun_estado_y_onboarded():

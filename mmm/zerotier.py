@@ -10,6 +10,8 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
+from . import procutil
+
 # Red privada auto-alojada del panel.
 NWID = "acf3c66fcf5b7449"
 SUBNET_PREFIX = "10.147.20."
@@ -48,7 +50,8 @@ def _run(*args: str) -> str:
     if not cli:
         raise RuntimeError("ZeroTier no está instalado")
     return subprocess.run(
-        [cli, *args], capture_output=True, text=True, timeout=20
+        [cli, *args], capture_output=True, text=True, timeout=20,
+        **procutil.no_window_kwargs(),
     ).stdout
 
 

@@ -6,6 +6,7 @@ from pathlib import Path
 
 import requests
 
+from .. import procutil
 from ..launcher import ensure_launcher_profiles
 from .base import LoaderInstaller
 
@@ -39,7 +40,7 @@ def download_installer(loader_version: str, dest: Path) -> None:
 
 
 def _run(cmd: list[str]):
-    return subprocess.run(cmd, capture_output=True, text=True)
+    return subprocess.run(cmd, capture_output=True, text=True, **procutil.no_window_kwargs())
 
 
 class NeoForgeInstaller(LoaderInstaller):
