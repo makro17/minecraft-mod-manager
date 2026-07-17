@@ -91,6 +91,15 @@ def test_apply_resolve_meta_sin_cambios_devuelve_false():
     assert config.apply_resolve_meta(server, info) is False
 
 
+def test_apply_resolve_meta_cachea_address():
+    server = {"loader": "neoforge", "minecraft_version": "1.21.1",
+              "loader_version": "21.1.238", "name": "P", "motd": "x"}
+    info = {"loader": "neoforge", "minecraft_version": "1.21.1", "loader_version": "21.1.238",
+            "server_name": "P", "motd": "x", "address": "10.147.20.29:25565"}
+    assert config.apply_resolve_meta(server, info) is True
+    assert server["address"] == "10.147.20.29:25565"
+
+
 def test_zt_onboarded_por_defecto_desactivado():
     assert config.get_zt_onboarded() is False
 

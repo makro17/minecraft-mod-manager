@@ -107,6 +107,7 @@ _RESOLVE_META = (
     ("loader_version", "loader_version"),
     ("name", "server_name"),
     ("motd", "motd"),
+    ("address", "address"),
 )
 
 
