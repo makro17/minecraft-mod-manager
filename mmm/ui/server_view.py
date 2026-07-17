@@ -14,44 +14,59 @@ from .widgets import ProgressPanel
 
 class ServerView(ttk.Frame):
     def __init__(self, parent, server: dict, on_back, auto_update: bool = False):
-        super().__init__(parent, padding=16)
+        super().__init__(parent)
         self.server = server
         self.on_back = on_back
         self.worker: InstallWorker | None = None
         self._mirror_shaders = tk.IntVar(value=0)  # 0 = añadir, 1 = sobrescribir
 
-        self.back_button = ttk.Button(self, text="← Volver", command=self._back)
+        # ── Área scrolleable: canvas + scrollbar + frame interior (self.body) ──
+        canvas = tk.Canvas(self, highlightthickness=0)
+        vsb = ttk.Scrollbar(self, orient="vertical", command=canvas.yview)
+        canvas.configure(yscrollcommand=vsb.set)
+        vsb.pack(side="right", fill="y")
+        canvas.pack(side="left", fill="both", expand=True)
+        self.body = ttk.Frame(canvas, padding=16)
+        win = canvas.create_window((0, 0), window=self.body, anchor="nw")
+        self.body.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.bind("<Configure>", lambda e: canvas.itemconfigure(win, width=e.width))
+        # Rueda del ratón solo mientras el puntero está sobre el canvas (sin binding global permanente).
+        canvas.bind("<Enter>", lambda e: canvas.bind_all(
+            "<MouseWheel>", lambda ev: canvas.yview_scroll(int(-ev.delta / 120), "units")))
+        canvas.bind("<Leave>", lambda e: canvas.unbind_all("<MouseWheel>"))
+
+        self.back_button = ttk.Button(self.body, text="← Volver", command=self._back)
         self.back_button.pack(anchor="w")
-        ttk.Label(self, text=server["name"], font=("Segoe UI", 16, "bold")).pack(anchor="w", pady=(8, 0))
-        ttk.Label(self, text=server.get("motd", "")).pack(anchor="w")
+        ttk.Label(self.body, text=server["name"], font=("Segoe UI", 16, "bold")).pack(anchor="w", pady=(8, 0))
+        ttk.Label(self.body, text=server.get("motd", "")).pack(anchor="w")
         self.version_label = ttk.Label(
-            self,
+            self.body,
             text=f'{server.get("loader","")} {server.get("minecraft_version","")} '
                  f'(loader {server.get("loader_version","")})',
         )
         self.version_label.pack(anchor="w", pady=(4, 4))
 
-        self.status_label = ttk.Label(self, text="Comprobando estado…", foreground="gray")
+        self.status_label = ttk.Label(self.body, text="Comprobando estado…", foreground="gray")
         self.status_label.pack(anchor="w", pady=(0, 8))
 
-        self.progress = ProgressPanel(self)
+        self.progress = ProgressPanel(self.body)
         self.progress.pack(fill="x")
 
         # El botón se muestra según el estado (oculto cuando ya está al día).
         # Instala/actualiza DIRECTAMENTE (sin paso de confirmación).
-        self.action = ttk.Button(self, text="Instalar", command=self._do_install)
+        self.action = ttk.Button(self.body, text="Instalar", command=self._do_install)
 
-        self.zt_button = ttk.Button(self, text="Unirse a la red (ZeroTier)", command=self._join_network)
+        self.zt_button = ttk.Button(self.body, text="Unirse a la red (ZeroTier)", command=self._join_network)
         self.zt_button.pack(pady=(0, 4))
 
-        self.zt_status = ttk.Label(self, text="ZeroTier: comprobando…", foreground="gray")
+        self.zt_status = ttk.Label(self.body, text="ZeroTier: comprobando…", foreground="gray")
         self.zt_status.pack(anchor="w", pady=(0, 6))
 
-        self.hint = ttk.Label(self, text="", wraplength=560, foreground="gray")
+        self.hint = ttk.Label(self.body, text="", wraplength=560, foreground="gray")
         self.hint.pack(anchor="w")
 
         # Lista del contenido del modpack, SIEMPRE visible bajo los botones.
-        self.content = ttk.Frame(self)
+        self.content = ttk.Frame(self.body)
         self.content.pack(fill="both", expand=True, pady=(10, 0))
 
         self._poll_zt()

@@ -17,6 +17,7 @@ class AppWindow(tk.Tk):
         super().__init__()
         self.title("MakroModManager")
         self.geometry("720x480")
+        self.minsize(680, 520)
         theme.apply(self, config.get_dark_mode())
         self._teleport_count = 0
         self._prank_image_shown = False
