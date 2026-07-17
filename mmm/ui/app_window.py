@@ -139,6 +139,9 @@ class AppWindow(tk.Tk):
     def _status_for(self, server: dict) -> str:
         try:
             info = api.resolve(server["key"])
+            # refresca los metadatos cacheados con la versión del modpack publicado
+            if config.apply_resolve_meta(server, info):
+                config.upsert_server(server)
             return config.server_status(server, info["latest_version"])
         except Exception:
             # sin red o clave caducada: se muestra según lo instalado

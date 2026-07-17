@@ -74,6 +74,23 @@ def test_set_prank_enabled_persiste():
     assert config.get_prank_enabled() is True
 
 
+def test_apply_resolve_meta_actualiza_y_reporta_cambio():
+    server = {"loader": "neoforge", "minecraft_version": "1.21.1",
+              "loader_version": "21.1.228", "name": "P", "motd": "x"}
+    info = {"loader": "neoforge", "minecraft_version": "1.21.1", "loader_version": "21.1.238",
+            "server_name": "P", "motd": "x", "latest_version": 5}
+    assert config.apply_resolve_meta(server, info) is True
+    assert server["loader_version"] == "21.1.238"  # deja de mostrar la cacheada
+
+
+def test_apply_resolve_meta_sin_cambios_devuelve_false():
+    server = {"loader": "neoforge", "minecraft_version": "1.21.1",
+              "loader_version": "21.1.238", "name": "P", "motd": "x"}
+    info = {"loader": "neoforge", "minecraft_version": "1.21.1", "loader_version": "21.1.238",
+            "server_name": "P", "motd": "x"}
+    assert config.apply_resolve_meta(server, info) is False
+
+
 def test_zt_onboarded_por_defecto_desactivado():
     assert config.get_zt_onboarded() is False
 

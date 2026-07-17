@@ -100,6 +100,29 @@ def resolve_shaders_mirror(server: dict) -> bool:
     return bool(v) if isinstance(v, bool) else get_shaders_mirror_default()
 
 
+# Metadatos del modpack que /pub/resolve devuelve → campo local en el server.
+_RESOLVE_META = (
+    ("loader", "loader"),
+    ("minecraft_version", "minecraft_version"),
+    ("loader_version", "loader_version"),
+    ("name", "server_name"),
+    ("motd", "motd"),
+)
+
+
+def apply_resolve_meta(server: dict, info: dict) -> bool:
+    """Refresca en `server` los metadatos del modpack publicado que devuelve
+    /pub/resolve (versión, nombre, motd), en vez de quedarse con los cacheados al
+    añadirlo. Devuelve True si cambió algo (para persistir)."""
+    changed = False
+    for key, src in _RESOLVE_META:
+        val = info.get(src)
+        if val is not None and server.get(key) != val:
+            server[key] = val
+            changed = True
+    return changed
+
+
 def get_dark_mode() -> bool:
     return bool(load_state().get("dark_mode", False))
 

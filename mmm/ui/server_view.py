@@ -73,21 +73,29 @@ class ServerView(ttk.Frame):
     def _refresh_status(self):
         def run():
             try:
-                latest = api.resolve(self.server["key"]).get("latest_version", 0)
+                info = api.resolve(self.server["key"])
             except Exception:
-                latest = None
+                info = None
             if self.winfo_exists():
-                self.after(0, lambda: self._apply_status(latest))
+                self.after(0, lambda: self._apply_status(info))
 
         threading.Thread(target=run, daemon=True).start()
 
-    def _apply_status(self, latest):
+    def _apply_status(self, info):
         if not self.winfo_exists():
             return
-        if latest is None:
+        if info is None:
             self.status_label.config(text="Sin conexión: no pude comprobar el estado.", foreground="gray")
             self._show_action("Instalar / Actualizar")
             return
+        # Refresca la versión mostrada con la del modpack publicado (resolve la da).
+        if config.apply_resolve_meta(self.server, info):
+            config.upsert_server(self.server)
+            self.version_label.config(
+                text=f'{self.server.get("loader","")} {self.server.get("minecraft_version","")} '
+                     f'(loader {self.server.get("loader_version","")})'
+            )
+        latest = info.get("latest_version", 0)
         st = config.server_status(self.server, latest)
         installed = self.server.get("installed_version")
         if st == "al_dia":
