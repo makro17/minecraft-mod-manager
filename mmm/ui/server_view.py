@@ -9,7 +9,7 @@ from .. import api, config, instances, jre, launcher, zerotier
 from ..worker import InstallWorker
 from . import dialogs
 from .format import human_size
-from .widgets import ProgressPanel
+from .widgets import AddressBar, ProgressPanel
 
 
 class ServerView(ttk.Frame):
@@ -48,6 +48,8 @@ class ServerView(ttk.Frame):
 
         self.status_label = ttk.Label(self.body, text="Comprobando estado…", foreground="gray")
         self.status_label.pack(anchor="w", pady=(0, 8))
+
+        AddressBar(self.body, server.get("address")).pack(anchor="w", pady=(0, 8))
 
         self.progress = ProgressPanel(self.body)
         self.progress.pack(fill="x")

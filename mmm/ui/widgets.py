@@ -34,6 +34,24 @@ class Tooltip:
             self.tip = None
 
 
+class AddressBar(ttk.Frame):
+    """Muestra la dirección del servidor con un botón para copiarla."""
+
+    def __init__(self, parent, address: str | None):
+        super().__init__(parent)
+        ttk.Label(self, text=f"🌐 {address or 'IP no disponible'}").pack(side="left")
+        self._addr = address
+        if address:
+            self._btn = ttk.Button(self, text="Copiar", width=8, command=self._copy)
+            self._btn.pack(side="left", padx=(6, 0))
+
+    def _copy(self):
+        self.clipboard_clear()
+        self.clipboard_append(self._addr)
+        self._btn.config(text="¡Copiado!")
+        self.after(1200, lambda: self._btn.winfo_exists() and self._btn.config(text="Copiar"))
+
+
 class ServerRow(ttk.Frame):
     def __init__(self, parent, server: dict, status: str, on_open, on_update, on_delete, on_reveal):
         super().__init__(parent, padding=(8, 8))
@@ -59,6 +77,9 @@ class ServerRow(ttk.Frame):
         for w in (info, *labels):
             w.configure(cursor="hand2")
             w.bind("<Button-1>", _open)
+
+        # ── Dirección del servidor (copiable, sin entrar a detalles) ─────────
+        AddressBar(self, server.get("address")).pack(fill="x", pady=(6, 0))
 
         # ── Acciones (debajo, aprovechando el ancho) ─────────────────────────
         actions = ttk.Frame(self)
