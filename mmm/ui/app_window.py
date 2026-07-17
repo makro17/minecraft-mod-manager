@@ -132,12 +132,15 @@ class AppWindow(tk.Tk):
         for server in servers:
             status = self._status_for(server)
             ServerRow(body, server, status, self._open_server,
-                      self._update_server, self._delete_server, self._reveal_server).pack(fill="x", pady=2)
+                      self._update_server, self._delete_server, self._reveal_server,
+                      self._reenter_key).pack(fill="x", pady=2)
 
         ttk.Button(self.container, text="+ Añadir servidor (clave)",
                    command=self._add_server).pack(pady=10)
 
     def _status_for(self, server: dict) -> str:
+        if server.get("key_locked"):
+            return "clave_bloqueada"
         try:
             info = api.resolve(server["key"])
             # refresca los metadatos cacheados con la versión del modpack publicado
@@ -208,3 +211,19 @@ class AppWindow(tk.Tk):
             os.startfile(path)
         else:
             messagebox.showinfo("Carpeta", "Aún no hay carpeta (instala el modpack primero).", parent=self)
+
+    def _reenter_key(self, server: dict):
+        key = dialogs.ask_key(self)
+        if not key:
+            return
+        try:
+            api.resolve(key)
+        except api.PubError as e:
+            msg = "Clave inválida o caducada." if e.status == 403 else str(e)
+            dialogs.show_error(self, "No se pudo actualizar", msg)
+            return
+        server["key"] = key
+        server.pop("key_locked", None)
+        server.pop("_key_cipher", None)
+        config.upsert_server(server)
+        self.refresh()

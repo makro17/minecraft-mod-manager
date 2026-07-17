@@ -53,7 +53,7 @@ class AddressBar(ttk.Frame):
 
 
 class ServerRow(ttk.Frame):
-    def __init__(self, parent, server: dict, status: str, on_open, on_update, on_delete, on_reveal):
+    def __init__(self, parent, server: dict, status: str, on_open, on_update, on_delete, on_reveal, on_reenter_key):
         super().__init__(parent, padding=(8, 8))
         sym, txt = status_label(status)
         installed = server.get("installed_version")
@@ -86,7 +86,10 @@ class ServerRow(ttk.Frame):
         actions.pack(fill="x", pady=(6, 0))
         # A la izquierda: ver + instalar/actualizar (nada si ya está al día).
         ttk.Button(actions, text="Ver", width=8, command=lambda: on_open(server)).pack(side="left", padx=(0, 4))
-        if status != "al_dia":
+        if status == "clave_bloqueada":
+            ttk.Button(actions, text="Reintroducir clave", width=18,
+                       command=lambda: on_reenter_key(server)).pack(side="left", padx=4)
+        elif status != "al_dia":
             label = "Instalar" if status == "no_instalado" else "Actualizar"
             ttk.Button(actions, text=label, width=11,
                        command=lambda: on_update(server)).pack(side="left", padx=4)
