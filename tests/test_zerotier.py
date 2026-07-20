@@ -1,6 +1,9 @@
 """C4 · núcleo de onboarding ZeroTier en el cliente."""
 import subprocess
 import sys
+from pathlib import Path
+
+import pytest
 
 from mmm import api, zerotier
 
@@ -80,3 +83,79 @@ def test_ui_action_segun_estado_y_onboarded():
     assert zerotier.ui_action("authorized", onboarded=True) == "disconnect"
     # No instalado → guiar a instalar.
     assert zerotier.ui_action("not_installed", onboarded=False) == "install"
+
+
+def _fake_download(store):
+    def download(url, dest):
+        store["url"] = url
+        store["dest"] = Path(dest)
+        Path(dest).write_bytes(b"msi")
+    return download
+
+
+def test_install_ok(monkeypatch):
+    store = {}
+
+    def run(cmd):
+        store["cmd"] = cmd
+        return 0
+
+    monkeypatch.setattr(zerotier, "is_installed", lambda: True)
+    assert zerotier.install(_fake_download(store), run, sleep=lambda s: None) is True
+    assert store["url"] == zerotier.MSI_URL
+    assert store["cmd"][0] == "msiexec"
+    assert store["cmd"][1] == "/i"
+    assert store["cmd"][2].endswith(".msi")
+    assert store["cmd"][3:] == ["/qn", "/norestart"]
+
+
+def test_install_hace_polling_hasta_que_aparece_el_cli(monkeypatch):
+    store = {}
+    sleeps = []
+    llamadas = {"n": 0}
+
+    def is_installed():
+        llamadas["n"] += 1
+        return llamadas["n"] >= 3
+
+    monkeypatch.setattr(zerotier, "is_installed", is_installed)
+    ok = zerotier.install(_fake_download(store), lambda cmd: 0, sleep=sleeps.append, attempts=5, delay=0.5)
+    assert ok is True
+    assert sleeps == [0.5, 0.5]  # durmió entre los 3 intentos
+
+
+def test_install_timeout(monkeypatch):
+    store = {}
+    sleeps = []
+    monkeypatch.setattr(zerotier, "is_installed", lambda: False)
+    ok = zerotier.install(_fake_download(store), lambda cmd: 0, sleep=sleeps.append, attempts=3, delay=1.0)
+    assert ok is False
+    assert len(sleeps) == 3
+
+
+def test_install_msiexec_codigo_distinto_de_cero(monkeypatch):
+    store = {}
+    monkeypatch.setattr(zerotier, "is_installed", lambda: pytest.fail("no debe consultarse"))
+    assert zerotier.install(_fake_download(store), lambda cmd: 1618, sleep=lambda s: None) is False
+
+
+def test_install_error_de_descarga_propaga():
+    def download(url, dest):
+        raise RuntimeError("sin red")
+
+    with pytest.raises(RuntimeError):
+        zerotier.install(download, lambda cmd: 0, sleep=lambda s: None)
+
+
+def test_run_installer_evita_ventana_de_consola(monkeypatch):
+    captured = {}
+
+    class R:
+        returncode = 0
+
+    monkeypatch.setattr(subprocess, "run", lambda cmd, **kw: (captured.update(kw), R())[1])
+    assert zerotier.run_installer(["msiexec", "/i", "x.msi"]) == 0
+    if sys.platform == "win32":
+        assert captured.get("creationflags", 0) & subprocess.CREATE_NO_WINDOW
+    else:
+        assert "creationflags" not in captured

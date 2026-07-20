@@ -7,8 +7,12 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+import tempfile
+import time
 from pathlib import Path
 from typing import Optional
+
+import requests
 
 from . import procutil
 
@@ -135,3 +139,43 @@ def ui_action(state: str, onboarded: bool) -> str:
         return "disconnect"
     # not_joined
     return "reconnect" if onboarded else "join"
+
+
+# Instalador oficial. Sin sha256 pin: ZeroTier re-publica la MSI en cada versión
+# y habría que re-pinar el hash; HTTPS da la integridad de transporte.
+MSI_URL = "https://download.zerotier.com/dist/ZeroTier%20One.msi"
+
+
+def download_msi(url: str, dest: Path) -> None:
+    with requests.get(url, stream=True, timeout=120) as r:
+        r.raise_for_status()
+        with open(dest, "wb") as f:
+            for chunk in r.iter_content(1 << 16):
+                if chunk:
+                    f.write(chunk)
+
+
+def run_installer(cmd: list[str]) -> int:
+    return subprocess.run(
+        cmd, capture_output=True, text=True, timeout=600, **procutil.no_window_kwargs()
+    ).returncode
+
+
+def install(download=download_msi, run=run_installer, sleep=time.sleep, *,
+            url: str = MSI_URL, attempts: int = 20, delay: float = 1.0) -> bool:
+    """Instala ZeroTier en silencio. True si el CLI aparece antes del timeout.
+
+    Requiere que el proceso ya esté elevado (así no hay un segundo UAC).
+    `download`/`run`/`sleep` son inyectables para los tests.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        dest = Path(tmp) / "ZeroTierOne.msi"
+        download(url, dest)
+        if run(["msiexec", "/i", str(dest), "/qn", "/norestart"]) != 0:
+            return False
+    # El servicio tarda un poco en dejar el CLI en su sitio: polling.
+    for _ in range(attempts):
+        if is_installed():
+            return True
+        sleep(delay)
+    return False
