@@ -6,6 +6,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from .. import api, config, instances, launcher, prank
+from ..version import __version__
 from ..resources import resource_path
 from . import dialogs, theme
 from .server_view import ServerView
@@ -101,7 +102,11 @@ class AppWindow(tk.Tk):
         ttk.Checkbutton(
             top, text="", variable=prank_var,
             command=lambda: config.set_prank_enabled(prank_var.get()),
-        ).pack(anchor="w", padx=24, pady=(4, 40))
+        ).pack(anchor="w", padx=24, pady=(4, 16))
+
+        # Versión instalada: sirve para comprobar de un vistazo si el auto-update entró.
+        ttk.Label(top, text=f"MakroModManager v{__version__}", foreground="gray").pack(
+            anchor="w", padx=24, pady=(0, 24))
 
     def _toggle_dark(self, dark: bool, dialog):
         config.set_dark_mode(dark)
