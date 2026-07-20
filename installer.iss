@@ -1,6 +1,6 @@
 ; MakroModManager — Inno Setup
 #define AppName    "MakroModManager"
-#define AppVersion "1.1.0"
+#define AppVersion "1.2.0"
 #define AppExe     "MakroModManager.exe"
 #define BuildDir   "dist\MakroModManager"
 
