@@ -5,7 +5,7 @@ import threading
 import tkinter as tk
 from tkinter import ttk
 
-from .. import api, config, instances, jre, launcher, zerotier
+from .. import api, config, elevation, instances, jre, launcher, zerotier
 from ..worker import InstallWorker
 from . import dialogs
 from .format import human_size
@@ -137,6 +137,11 @@ class ServerView(ttk.Frame):
     def _poll_zt(self):
         if not self.winfo_exists():
             return
+        # Sin permisos, `zerotier-cli` no puede leer authtoken.secret y todo
+        # parecería «no instalado»: mejor no consultarlo y pedir la elevación.
+        if not elevation.is_elevated():
+            self._show_elevation_gate()
+            return
 
         def run():
             state = zerotier.access_status()
@@ -149,6 +154,26 @@ class ServerView(ttk.Frame):
         self.zt_button.config(text=text, command=command)
         if not self.zt_button.winfo_ismapped():
             self.zt_button.pack(pady=(0, 4), before=self.zt_status)
+
+    def _show_elevation_gate(self):
+        self.zt_status.config(
+            text="ZeroTier: para gestionar la red necesito permisos de administrador",
+            foreground="#b0894a",
+        )
+        self._set_zt_button("Reiniciar con permisos", self._restart_elevated)
+        # No se reprograma el polling: la elevación solo cambia reiniciando la app.
+
+    def _restart_elevated(self):
+        if elevation.relaunch_as_admin():
+            self.winfo_toplevel().destroy()
+            return
+        from tkinter import messagebox
+        messagebox.showerror(
+            "Permisos",
+            "No se obtuvieron permisos de administrador. Cierra la app y ábrela con "
+            "«Ejecutar como administrador».",
+            parent=self,
+        )
 
     def _apply_zt_state(self, state: str):
         if not self.winfo_exists():
