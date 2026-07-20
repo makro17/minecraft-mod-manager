@@ -5,6 +5,7 @@ import webbrowser
 from tkinter import messagebox, simpledialog
 
 from .. import api, config, zerotier
+from . import dialogs
 
 DOWNLOAD_URL = "https://www.zerotier.com/download/"
 
@@ -30,13 +31,28 @@ def ensure_access(parent, key: str) -> None:
     state = zerotier.access_status()
 
     if state == "not_installed":
-        if messagebox.askyesno(
+        if not messagebox.askyesno(
             "ZeroTier no instalado",
-            "Necesitas ZeroTier para conectar a este servidor.\n¿Abrir la página de descarga?",
+            "Necesitas ZeroTier para conectar a este servidor.\n"
+            "¿Lo instalo ahora? (tarda un minuto, no hace falta que toques nada)",
             parent=parent,
         ):
+            return
+        ok, error = dialogs.run_busy(
+            parent, "Instalando ZeroTier", "Descargando e instalando ZeroTier…", zerotier.install
+        )
+        if error is not None or not ok:
+            detalle = f"\n\n({error})" if error is not None else ""
+            messagebox.showerror(
+                "ZeroTier",
+                "No pude instalar ZeroTier automáticamente. Abro la página de descarga "
+                "para que lo instales a mano." + detalle,
+                parent=parent,
+            )
             webbrowser.open(DOWNLOAD_URL)
-        return
+            return
+        # Ya instalado: reevalúa el estado y sigue el onboarding normal (join → solicitud).
+        return ensure_access(parent, key)
 
     if state == "authorized":
         messagebox.showinfo("ZeroTier", "Ya estás en la red. Puedes conectar al servidor.", parent=parent)
